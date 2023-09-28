@@ -135,6 +135,8 @@ def email_exists(email):
         # Close the database connection
         close_database_connection(db)
 
+
+
 def update_password(email, temporary_password):
     try:
         db, cursor = get_database_connection()

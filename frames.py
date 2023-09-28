@@ -22,8 +22,8 @@ class MainFrame(customtkinter.CTkFrame):
         self.login_frame.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
 
         #TOP text
-        self.label2 = customtkinter.CTkLabel(master=self.login_frame, text="Log Into Account", font=('Century Gothic', 25))
-        self.label2.place(x=50, y=45)
+        self.text = customtkinter.CTkLabel(master=self.login_frame, text="Log Into Account", font=('Century Gothic', 25))
+        self.text.place(x=50, y=45)
 
         #Username entry block
         self.u_block = customtkinter.CTkEntry(master=self.login_frame, width=220, placeholder_text="Username")
@@ -42,7 +42,6 @@ class MainFrame(customtkinter.CTkFrame):
         self.label3 = customtkinter.CTkLabel(master=self.login_frame, text="Forgot password?", font=('Century Gothic', 10))
         self.label3.place(x=180, y=180)
         self.label3.bind("<Button-1>", lambda event: self.master.open_forgot_password_frame())
-
 
         #Login button
         self.login_button = customtkinter.CTkButton(master=self.login_frame, width=100, text="Login", corner_radius=6, fg_color="#72bcd4", text_color="#1e5364", hover_color="#e8f4f8", command=self.check_login_credentials)
@@ -89,6 +88,19 @@ class RegisterFrame(customtkinter.CTkFrame):
         # Create the registration frame
         self.registration_frame = customtkinter.CTkFrame(master=self, width=320, height=360)
         self.registration_frame.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
+
+        self.back_button = customtkinter.CTkButton(
+            master=self.registration_frame,
+            width=30,
+            height=30,
+            text="◀️",  # Use the left arrow character as the text
+            corner_radius=6,
+            fg_color="#72bcd4",
+            text_color="#1e5364",
+            hover_color="#e8f4f8",
+            command=self.master.open_main_frame
+        )
+        self.back_button.place(x=10, y=10)
 
         # Entry fields for registration form
         self.name_entry = customtkinter.CTkEntry(master=self.registration_frame, width=220, placeholder_text="First Name")
@@ -150,6 +162,22 @@ class ForgotPasswordFrame(customtkinter.CTkFrame):
         # Create the Forgot Password frame
         self.forgot_password_frame = customtkinter.CTkFrame(master=self, width=320, height=360)
         self.forgot_password_frame.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
+
+        self.back_button = customtkinter.CTkButton(
+            master=self.forgot_password_frame,
+            width=30,
+            height=30,
+            text="◀️",  # Use the left arrow character as the text
+            corner_radius=6,
+            fg_color="#72bcd4",
+            text_color="#1e5364",
+            hover_color="#e8f4f8",
+            command=self.master.open_main_frame
+        )
+        self.back_button.place(x=10, y=10)
+
+        self.text = customtkinter.CTkLabel(master=self.forgot_password_frame, text="Enter Your E-Mail", font=('Century Gothic', 25))
+        self.text.place(x=50, y=45)
         # Email entry block
         self.email_block = customtkinter.CTkEntry(master=self.forgot_password_frame, width=220, placeholder_text="Email")
         self.email_block.place(x=50, y=110)
