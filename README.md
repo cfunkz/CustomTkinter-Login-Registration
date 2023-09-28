@@ -77,3 +77,5 @@ The following functions are used for UI-related tasks.
 ### `validate_country(country_name)`
 - Checks if the entered country name is in the list of available countries obtained from `get_countries()`.
 
+# CONFIG.PY
+-Config File for setting up email
