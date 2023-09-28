@@ -41,6 +41,10 @@ class MainFrame(customtkinter.CTkFrame):
         #Forgot password text
         self.label3 = customtkinter.CTkLabel(master=self.login_frame, text="Forgot password?", font=('Century Gothic', 10))
         self.label3.place(x=180, y=180)
+        self.label3.bind("<Enter>", lambda event: self.label3.configure(cursor="hand2"))
+        # Change cursor back to the default arrow when mouse leaves the widget
+        self.label3.bind("<Leave>", lambda event: self.label3.configure(cursor="arrow"))
+        # Bind the click event to open the Forgot Password frame
         self.label3.bind("<Button-1>", lambda event: self.master.open_forgot_password_frame())
 
         #Login button
