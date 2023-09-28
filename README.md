@@ -25,9 +25,10 @@ Before you begin, ensure you have met the following requirements:
 - `Pillow`: You can install Pillow using `pip install Pillow`.
 
 ## Screenshots
+<img width="449" alt="image" src="">
 
 ![Screenshot 1](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/c9df6bdd-d391-43d6-afa1-f203a4694a53)
-![Screenshot 2](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/535dd044-82b6-4a17-8736-fb054557f712)
+![Screenshot 2](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/455a038b-72ed-42f4-9119-9205b00bdf97)
 ![Screenshot 3](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/b1037e9f-0591-4ef3-b7b4-79fd9f05496a)
 ![Screenshot 4](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/cba1b69a-774a-4629-b380-807f71122eda)
 ![Screenshot 5](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/66c35a0a-9c01-4800-b3d9-3c343806cfb2)
