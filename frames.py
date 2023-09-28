@@ -190,16 +190,17 @@ class ForgotPasswordFrame(customtkinter.CTkFrame):
         user_email = self.email_block.get()
         check_exists = email_exists(user_email)
         if check_exists:
-            # Generate a temporary password
+            # Generate a temporary password (or token)
             temporary_password = generate_temporary_password()
             update_password(user_email, temporary_password)
             # Send the password reset email
             send_password_reset_email(user_email, temporary_password)
-            # Inform the user
+            # Inform the user (you can customize this part)
             messagebox.showinfo("Password Reset", "An email with instructions has been sent to your email address.")
 
             # Remove the ForgotPasswordFrame and show the login frame again
             self.forgot_password_frame.destroy()
+            self.master.open_main_frame()
         else:
             messagebox.showerror("Error", "E-Mail doesn't exists!")
 
