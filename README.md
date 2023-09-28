@@ -1,23 +1,40 @@
 # CustomTkinter-Login-Registration
+
 Registration and login app made using customtkinter.
 
-This includes a sqlite3 database setup with many functions including saving the registration data, logging in, password reset, security questions, country selection and more. 
-Change the config.py file for your details to test e-mail functions. You can get the gmail app password [HERE](https://myaccount.google.com/apppasswords)
+This includes a sqlite3 database setup with many functions including saving the registration data, logging in, password reset, security questions, country selection, and more. Change the config.py file for your details to test e-mail functions. You can get the Gmail app password [HERE](https://myaccount.google.com/apppasswords)
 
+## Table of Contents
 
-`pip install tkinter`,
-`pip install customtkinter`,
-`pip install pycountry`,
-`pip install Pillow`,
+- [Prerequisites](#prerequisites)
+- [Screenshots](#screenshots)
+- [User Database Functions](#user-database-functions)
+- [UI Functions](#ui-functions)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Contributing](#contributing)
+- [License](#license)
 
-<img width="451" alt="image" src="https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/c9df6bdd-d391-43d6-afa1-f203a4694a53">
-<img width="449" alt="image" src="https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/535dd044-82b6-4a17-8736-fb054557f712">
-<img width="449" alt="image" src="https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/b1037e9f-0591-4ef3-b7b4-79fd9f05496a">
-<img width="449" alt="image" src="https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/cba1b69a-774a-4629-b380-807f71122eda">
-<img width="449" alt="image" src="https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/66c35a0a-9c01-4800-b3d9-3c343806cfb2">
-<img width="450" alt="image" src="https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/7d902c2e-4184-4e7e-9741-25618fec6bfd">
+## Prerequisites
 
-# User Database Functions
+Before you begin, ensure you have met the following requirements:
+
+- `tkinter`: You can install tkinter using `pip install tkinter`.
+- `customtkinter`: You can install customtkinter using `pip install customtkinter`.
+- `pycountry`: You can install pycountry using `pip install pycountry`.
+- `Pillow`: You can install Pillow using `pip install Pillow`.
+
+## Screenshots
+
+![Screenshot 1](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/c9df6bdd-d391-43d6-afa1-f203a4694a53)
+![Screenshot 2](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/535dd044-82b6-4a17-8736-fb054557f712)
+![Screenshot 3](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/b1037e9f-0591-4ef3-b7b4-79fd9f05496a)
+![Screenshot 4](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/cba1b69a-774a-4629-b380-807f71122eda)
+![Screenshot 5](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/66c35a0a-9c01-4800-b3d9-3c343806cfb2)
+![Screenshot 6](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/7d902c2e-4184-4e7e-9741-25618fec6bfd)
+
+## User Database Functions
 
 The following functions are used for managing user data in a SQLite database.
 
@@ -61,7 +78,7 @@ The following functions are used for managing user data in a SQLite database.
 ### `send_password_reset_email(email, temporary_password)`
 - Sends a password reset email to the provided email address with the temporary password.
 
-# UI Functions
+## UI Functions
 
 The following functions are used for UI-related tasks.
 
@@ -76,3 +93,12 @@ The following functions are used for UI-related tasks.
 
 ### `validate_country(country_name)`
 - Checks if the entered country name is in the list of available countries obtained from `get_countries()`.
+
+## Installation
+
+To install CustomTkinter-Login-Registration, follow these steps:
+
+1. Clone this repository:
+
+   ```bash
+   git clone https://github.com/didis97/CustomTkinter-Login-Registration.git
