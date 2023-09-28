@@ -1,9 +1,9 @@
 import tkinter
 import customtkinter
-from frames import MainFrame, RegisterFrame, LoggedInFrame, ForgotPasswordFrame
+from frames import MainFrame, RegisterFrame, LoggedInFrame, ForgotPasswordFrame, ForgotPasswordFrame2
 
 customtkinter.set_appearance_mode("System")
-customtkinter.set_default_color_theme("green")
+customtkinter.set_default_color_theme("blue")
 
 class MainApp(customtkinter.CTk):
     def __init__(self):
@@ -11,7 +11,6 @@ class MainApp(customtkinter.CTk):
 
         self.geometry("600x400")
         self.title("Sign into your Account")
-
         # Create the Main frame
         self.main_frame = MainFrame(self)
         self.main_frame.pack(expand=True, fill="both") # Expand to fill the main app window
@@ -46,6 +45,12 @@ class MainApp(customtkinter.CTk):
         self.forgot_password_frame = ForgotPasswordFrame(self)
         self.frames["forgot_password_frame"] = self.forgot_password_frame
         self.forgot_password_frame.pack(expand=True, fill="both")
+
+    def open_forgot_password_frame2(self, user_email):
+        self.main_frame = MainFrame(self)
+        self.forgot_password_frame2 = ForgotPasswordFrame2(self, user_email)
+        self.frames["forgot_password_frame2"] = self.forgot_password_frame2
+        self.forgot_password_frame2.pack(expand=True, fill="both")
 
     def open_main_frame(self):
         self.destroy_all_frames()
