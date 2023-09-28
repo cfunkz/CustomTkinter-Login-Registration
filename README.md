@@ -14,7 +14,6 @@ This includes a sqlite3 database setup with many functions including saving the 
 - [Usage](#usage)
 - [Configuration](#configuration)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Prerequisites
 
@@ -102,3 +101,16 @@ To install CustomTkinter-Login-Registration, follow these steps:
 
    ```bash
    git clone https://github.com/didis97/CustomTkinter-Login-Registration.git
+
+2. Install Imports:
+
+   ```bash
+   pip install tkinter customtkinter pycountry Pillow
+
+## Configuration
+
+Before using the application, configure the `config.py` file with your email and SMTP server details.
+
+## Contributing
+
+Contributions are welcome! Please feel free to open an issue or create a pull request.
