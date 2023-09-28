@@ -84,7 +84,7 @@ class RegisterFrame(customtkinter.CTkFrame):
         self.setup_register_frame()
 
     def setup_register_frame(self):
-
+        self.master.change_title("Registration")
         # Create the registration frame
         self.registration_frame = customtkinter.CTkFrame(master=self, width=320, height=360)
         self.registration_frame.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
@@ -160,6 +160,7 @@ class ForgotPasswordFrame(customtkinter.CTkFrame):
 
     def setup_forgot_password_frame(self):  # Correct method name
         # Create the Forgot Password frame
+        self.master.change_title("Forgot Password")
         self.forgot_password_frame = customtkinter.CTkFrame(master=self, width=320, height=360)
         self.forgot_password_frame.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
 

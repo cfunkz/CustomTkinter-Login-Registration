@@ -30,8 +30,8 @@ def send_password_reset_email(email, temporary_password):
     # Email configuration
     smtp_server = config.smtp_server
     smtp_port = config.smtp_port
-    smtp_username = config.smtp_username
-    smtp_password = config.smtp_password
+    smtp_username = config.smtp_username  # Replace with your Gmail email address
+    smtp_password = config.smtp_password  # Replace with your Gmail password
 
     # Email content
     sender_email = config.sender_email

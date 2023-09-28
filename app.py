@@ -20,6 +20,9 @@ class MainApp(customtkinter.CTk):
     def change_geometry(self, new_geometry):
         # Change the window geometry
         self.geometry(new_geometry)
+    def change_title(self, new_title):
+        # Change the window geometry
+        self.title(new_title)
 
     def open_loggedin_frame(self):
         # Destroy the Main frame and open the LoggedIn frame
@@ -46,6 +49,7 @@ class MainApp(customtkinter.CTk):
 
     def open_main_frame(self):
         self.destroy_all_frames()
+        self.change_title("Sign into your Account")
         self.main_frame = MainFrame(self)
         self.main_frame.pack(expand=True, fill="both")
 
