@@ -1,10 +1,10 @@
 # CustomTkinter-Login-Registration
 Registration and login app made using customtkinter.
 
-pip install tkinter
-pip install customtkinter
-pip install pycountry
-pip install Pillow
+`pip install tkinter`,
+`pip install customtkinter`,
+`pip install pycountry`,
+`pip install Pillow`,
 
 
 <img width="447" alt="image" src="https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/6ff93b0c-8cd0-424f-abb4-12cbe31df6d9">
