@@ -1,9 +1,8 @@
 import tkinter
 import customtkinter
-from functions import validate_country, check_security_answer, get_security_question, is_valid_email, get_countries, toggle_password, register_user, test_buttons, check_login, generate_temporary_password, send_password_reset_email, email_exists, update_password
+from functions import is_valid_chars, check_security_answer, get_security_question, is_valid_email, get_countries, toggle_password, register_user, test_buttons, check_login, generate_temporary_password, send_password_reset_email, email_exists, update_password
 from PIL import ImageTk, Image
 from tkinter import messagebox
-import re
 
 class MainFrame(customtkinter.CTkFrame):
     def __init__(self, master):
@@ -158,15 +157,18 @@ class RegisterFrame(customtkinter.CTkFrame):
         security_question = self.security_question_var.get()  # Get the selected security question
         security_answer = self.security_answer_entry.get()
 
-        english_letters_pattern = re.compile(r'^[a-zA-Z]+$')
-
         if not first_name or not last_name or not username or not password:
             print("Please fill in all required fields.")
             messagebox.showerror("Error", "Please fill in all required fields.")
             return
-        if not english_letters_pattern.match(first_name) or not english_letters_pattern.match(last_name) or not english_letters_pattern.match(username) or not english_letters_pattern.match(password) or not english_letters_pattern.match(security_answer):
-            print("First name and last name must contain only English letters.")
-            messagebox.showerror("Error", "Use Only English letters and standart characters.")
+        # Check if fields contain only English letters and standard characters
+        if not is_valid_chars(first_name) or \
+                not is_valid_chars(last_name) or \
+                not is_valid_chars(username) or \
+                not is_valid_chars(password) or \
+                not is_valid_chars(security_answer):
+            print("Fields must contain only English letters and standard characters.")
+            messagebox.showerror("Error", "Use Only English letters and standard characters.")
             return
         if country == "Select Country":
             print("No country Selected")
@@ -179,10 +181,6 @@ class RegisterFrame(customtkinter.CTkFrame):
         if not is_valid_email(email):
             print("Invalid email address")
             messagebox.showerror("Error", "Please enter a valid email address.")
-            return
-        if not validate_country(country):
-            print("Such country doesn't exist.")
-            messagebox.showerror("Error", "Such country doesn't exist")
             return
         # Call the register_user function from functions.py
         if register_user(first_name, last_name, country, username, email, password, security_question, security_answer):
