@@ -165,10 +165,9 @@ class RegisterFrame(customtkinter.CTkFrame):
         if not is_valid_chars(first_name) or \
                 not is_valid_chars(last_name) or \
                 not is_valid_chars(username) or \
-                not is_valid_chars(password) or \
-                not is_valid_chars(security_answer):
+                not is_valid_chars(password):
             print("Fields must contain only English letters and standard characters.")
-            messagebox.showerror("Error", "Use Only English letters and standard characters.")
+            messagebox.showerror("Error", "Use Only English letters and standard characters without spaces.")
             return
         if country == "Select Country":
             print("No country Selected")
