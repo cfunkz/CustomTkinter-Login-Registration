@@ -1,6 +1,6 @@
 # CustomTkinter-Login-Registration
 
-Registration and login app made using customtkinter.
+Registration and login app made using customtkinter with simple input validation.
 
 This includes a sqlite3 database setup with many functions including saving the registration data, logging in, password reset, security questions, country selection, and more. Change the config.py file for your details to test e-mail functions. You can get the Gmail app password [HERE](https://myaccount.google.com/apppasswords)
 
