@@ -71,7 +71,10 @@ The following functions are used for managing user data in a SQLite database.
 - Returns `True` for valid email addresses, or `False` for invalid ones.
 
 ### `is_valid_chars(input_string)`
-- Validates if the provided characters are english.
+- Validates if the provided characters are english without spaces.
+
+### `is_valid_chars_space(input_string)`
+- Validates if the provided characters are english spaces allowed.
 
 ### `generate_temporary_password(length=8)`
 - Generates a random temporary password of the specified length (default is 8 characters).
