@@ -21,12 +21,15 @@ class MainFrame(customtkinter.CTkFrame):
         self.text = customtkinter.CTkLabel(master=self.login_frame, text="Log Into Account", font=('Century Gothic', 25))
         self.text.place(x=50, y=45)
 
+        self.error_label = customtkinter.CTkLabel(master=self.login_frame, text="", font=('Century Gothic', 12), text_color="red")
+        self.error_label.place(x=25, y=80)
+
         #Username entry block
         self.u_block = customtkinter.CTkEntry(master=self.login_frame, width=220, placeholder_text="Username")
         self.u_block.place(x=50, y=110)
 
         #Password entry block
-        self.show_password_var = tkinter.BooleanVar()
+        self.show_password_var = customtkinter.BooleanVar()
         self.p_block = customtkinter.CTkEntry(master=self.login_frame, width=220, placeholder_text="Password", show="*")
         self.p_block.place(x=50, y=150)
 
@@ -74,7 +77,7 @@ class MainFrame(customtkinter.CTkFrame):
             self.master.open_loggedin_frame()
         else:
             # Login failed, show an error message
-            messagebox.showerror("Error", "Invalid username or password. Please try again.")
+            self.error_label.configure(text="Invalid username or password. Please try again.")
 
 class RegisterFrame(customtkinter.CTkFrame):
     def __init__(self, master):
@@ -95,9 +98,9 @@ class RegisterFrame(customtkinter.CTkFrame):
             height=30,
             text="◀️",  # Use the left arrow character as the text
             corner_radius=6,
-            fg_color="#72bcd4",
-            text_color="#1e5364",
-            hover_color="#e8f4f8",
+            fg_color="#3498db",
+            text_color="#ffffff",
+            hover_color="#2980b9",
             command=self.master.open_main_frame
         )
         self.back_button.place(x=10, y=10)
@@ -139,7 +142,7 @@ class RegisterFrame(customtkinter.CTkFrame):
         # Registration button
         self.register_button = customtkinter.CTkButton(master=self.registration_frame, width=100, text="Register",
                                                   corner_radius=6,
-                                                  fg_color="#72bcd4", text_color="#1e5364", hover_color="#e8f4f8",
+                                                  fg_color="#3498db", text_color="#ffffff", hover_color="#2980b9",
                                                   command=self.new_user_data)
         self.register_button.place(x=110, y=340)
 
