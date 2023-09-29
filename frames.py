@@ -1,6 +1,6 @@
 import tkinter
 import customtkinter
-from functions import is_valid_chars, check_security_answer, get_security_question, is_valid_email, get_countries, toggle_password, register_user, test_buttons, check_login, generate_temporary_password, send_password_reset_email, email_exists, update_password
+from functions import is_valid_chars_space, is_valid_chars, check_security_answer, get_security_question, is_valid_email, get_countries, toggle_password, register_user, test_buttons, check_login, generate_temporary_password, send_password_reset_email, email_exists, update_password
 from PIL import ImageTk, Image
 from tkinter import messagebox
 
@@ -161,11 +161,12 @@ class RegisterFrame(customtkinter.CTkFrame):
             print("Please fill in all required fields.")
             messagebox.showerror("Error", "Please fill in all required fields.")
             return
+        if not is_valid_chars_space(first_name) or not is_valid_chars_space(last_name):
+            print("Name and Surname must contain only English letters.")
+            messagebox.showerror("Error", "Use Only English letters.")
+            return
         # Check if fields contain only English letters and standard characters
-        if not is_valid_chars(first_name) or \
-                not is_valid_chars(last_name) or \
-                not is_valid_chars(username) or \
-                not is_valid_chars(password):
+        if not is_valid_chars(username) or not is_valid_chars(password):
             print("Fields must contain only English letters and standard characters.")
             messagebox.showerror("Error", "Use Only English letters and standard characters without spaces.")
             return
