@@ -27,9 +27,10 @@ Before you begin, ensure you have met the following requirements:
 ## Screenshots
 ![Screenshot 1](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/612f6670-2c69-449a-b939-60bcaeb4e49b)
 ![Screenshot 2](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/0f2bf83d-fa3a-4532-acba-5a51d06e3b3e)
-![Screenshot 3](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/455a038b-72ed-42f4-9119-9205b00bdf97)
-![Screenshot 4](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/b1037e9f-0591-4ef3-b7b4-79fd9f05496a)
-![Screenshot 5](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/cba1b69a-774a-4629-b380-807f71122eda)
+![Screenshot 3](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/32c01453-6e29-4c76-948b-e8d6a898b1ea)
+![Screenshot 4](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/455a038b-72ed-42f4-9119-9205b00bdf97)
+![Screenshot 5](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/b1037e9f-0591-4ef3-b7b4-79fd9f05496a)
+![Screenshot 6](https://github.com/didis97/CustomTkinter-Login-Registration/assets/116670695/cba1b69a-774a-4629-b380-807f71122eda)
 
 ## User Database Functions
 
