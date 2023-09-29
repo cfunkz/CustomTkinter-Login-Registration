@@ -3,6 +3,7 @@ import customtkinter
 from functions import validate_country, check_security_answer, get_security_question, is_valid_email, get_countries, toggle_password, register_user, test_buttons, check_login, generate_temporary_password, send_password_reset_email, email_exists, update_password
 from PIL import ImageTk, Image
 from tkinter import messagebox
+import re
 
 class MainFrame(customtkinter.CTkFrame):
     def __init__(self, master):
@@ -115,7 +116,7 @@ class RegisterFrame(customtkinter.CTkFrame):
         # Create a CTkOptionMenu for the country dropdown
         self.country_var = customtkinter.StringVar(value="Select Country")
         self.country_box = customtkinter.CTkComboBox(master=self.registration_frame, variable=self.country_var, values=get_countries(),
-                                                          width=220)
+                                                          width=220, state="readonly")
         self.country_box.place(x=50, y=110)
 
         self.username_entry = customtkinter.CTkEntry(master=self.registration_frame, width=220, placeholder_text="Username")
@@ -132,7 +133,7 @@ class RegisterFrame(customtkinter.CTkFrame):
 
         self.security_questions = ["What is your mother's maiden name?", "What is your favorite pet's name?", "Where were you born?", "What is your favorite movie?", "What is your favorite book?"]
         self.security_question_var = customtkinter.StringVar(value="Select Security Question")
-        self.security_question_dropdown = customtkinter.CTkComboBox(master=self.registration_frame, variable=self.security_question_var, values=self.security_questions, width=220)
+        self.security_question_dropdown = customtkinter.CTkComboBox(master=self.registration_frame, variable=self.security_question_var, values=self.security_questions, width=220, state="readonly")
         self.security_question_dropdown.place(x=50, y=260)
 
         # Security Answer entry field
@@ -157,9 +158,15 @@ class RegisterFrame(customtkinter.CTkFrame):
         security_question = self.security_question_var.get()  # Get the selected security question
         security_answer = self.security_answer_entry.get()
 
+        english_letters_pattern = re.compile(r'^[a-zA-Z]+$')
+
         if not first_name or not last_name or not username or not password:
             print("Please fill in all required fields.")
             messagebox.showerror("Error", "Please fill in all required fields.")
+            return
+        if not english_letters_pattern.match(first_name) or not english_letters_pattern.match(last_name) or not english_letters_pattern.match(username) or not english_letters_pattern.match(password) or not english_letters_pattern.match(security_answer):
+            print("First name and last name must contain only English letters.")
+            messagebox.showerror("Error", "Use Only English letters and standart characters.")
             return
         if country == "Select Country":
             print("No country Selected")
