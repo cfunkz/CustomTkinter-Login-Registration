@@ -209,7 +209,7 @@ def check_security_answer(email, provided_answer):
         print("Database error:", str(e))
         return False
     finally:
-        db.close()
+        close_database_connection(db)
 
 def is_valid_email(email):
     # Regular expression pattern for a valid email address
