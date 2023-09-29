@@ -220,3 +220,8 @@ def is_valid_email(email):
         return True
     else:
         return False
+
+def is_valid_chars(input_string):
+    # Regular expression pattern to allow only English letters and standard characters
+    pattern = re.compile(r'^[a-zA-Z0-9_\-]+$')
+    return pattern.match(input_string) is not None
