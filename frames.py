@@ -131,8 +131,8 @@ class RegisterFrame(customtkinter.CTkFrame):
         self.security_question_label.place(x=50, y=230)
 
         self.security_questions = ["What is your mother's maiden name?", "What is your favorite pet's name?", "Where were you born?", "What is your favorite movie?", "What is your favorite book?"]
-        self.security_var = customtkinter.StringVar(value="Select Security Question")
-        self.security_question_dropdown = customtkinter.CTkComboBox(master=self.registration_frame, variable=self.security_var, values=self.security_questions, width=220)
+        self.security_question_var = customtkinter.StringVar(value="Select Security Question")
+        self.security_question_dropdown = customtkinter.CTkComboBox(master=self.registration_frame, variable=self.security_question_var, values=self.security_questions, width=220)
         self.security_question_dropdown.place(x=50, y=260)
 
         # Security Answer entry field
@@ -157,6 +157,18 @@ class RegisterFrame(customtkinter.CTkFrame):
         security_question = self.security_question_var.get()  # Get the selected security question
         security_answer = self.security_answer_entry.get()
 
+        if not first_name or not last_name or not username or not password:
+            print("Please fill in all required fields.")
+            messagebox.showerror("Error", "Please fill in all required fields.")
+            return
+        if country == "Select Country":
+            print("No country Selected")
+            messagebox.showerror("Error", "Please select a country.")
+            return
+        if security_question == "Select Security Question":
+            print("Invalid Security Question")
+            messagebox.showerror("Error", "Invalid Security Question.")
+            return
         if not is_valid_email(email):
             print("Invalid email address")
             messagebox.showerror("Error", "Please enter a valid email address.")
