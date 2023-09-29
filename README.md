@@ -11,7 +11,6 @@ This includes a sqlite3 database setup with many functions including saving the 
 - [User Database Functions](#user-database-functions)
 - [UI Functions](#ui-functions)
 - [Installation](#installation)
-- [Usage](#usage)
 - [Configuration](#configuration)
 - [Contributing](#contributing)
 
