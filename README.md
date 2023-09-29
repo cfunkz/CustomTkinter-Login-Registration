@@ -70,6 +70,9 @@ The following functions are used for managing user data in a SQLite database.
 - Validates if the provided email address follows the standard email format.
 - Returns `True` for valid email addresses, or `False` for invalid ones.
 
+### `is_valid_chars(input_string)`
+- Validates if the provided characters are english.
+
 ### `generate_temporary_password(length=8)`
 - Generates a random temporary password of the specified length (default is 8 characters).
 
@@ -89,8 +92,6 @@ The following functions are used for UI-related tasks.
 ### `get_countries()`
 - Retrieves a list of country names sorted in alphabetical order.
 
-### `validate_country(country_name)`
-- Checks if the entered country name is in the list of available countries obtained from `get_countries()`.
 
 ## Installation
 
