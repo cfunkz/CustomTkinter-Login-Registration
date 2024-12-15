@@ -1,4 +1,4 @@
-![Commits](https://img.shields.io/github/commit-activity/t/cfunkz/CustomTkinter-Login-Registration) ![Views](https://img.shields.io/github/views/repo/cfunkz/CustomTkinter-Login-Registration) ![Stars](https://img.shields.io/github/stars/cfunkz/CustomTkinter-Login-Registration?style=social)
+![Commits](https://img.shields.io/github/commit-activity/t/cfunkz/CustomTkinter-Login-Registration) ![Stars](https://img.shields.io/github/stars/cfunkz/CustomTkinter-Login-Registration?style=social)
 
 
 # CustomTkinter-Login-Registration
