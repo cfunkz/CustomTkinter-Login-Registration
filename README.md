@@ -1,3 +1,5 @@
+![Downloads](https://img.shields.io/github/downloads/cfunkz/CustomTkinter-Login-Registration/total) ![Release](https://img.shields.io/github/release/cfunkz/CustomTkinter-Login-Registration.svg) ![Commits](https://img.shields.io/github/commit-activity/t/cfunkz/CustomTkinter-Login-Registration)
+
 # CustomTkinter-Login-Registration
 
 Registration and login app made using customtkinter with simple input validation.
