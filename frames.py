@@ -1,0 +1,800 @@
+import threading
+import tkinter
+from functools import lru_cache
+from tkinter import messagebox
+import customtkinter
+from PIL import Image
+import config
+from functions import (is_valid_chars_space, is_valid_chars, is_valid_password_chars, is_strong_password, password_strength,
+                       check_security_answer, get_security_question, is_valid_email, get_countries, validate_country,
+                       toggle_password, register_user, check_login, get_lockout_remaining, reset_password,
+                       email_exists, username_exists, change_password, get_user_data, update_user_profile, delete_user,
+                       oauth_login_user)
+from oauth import oauth_sign_in, get_display_providers, get_provider_name, is_provider_configured, OAuthError
+
+# ---------------------------------------------------------------- Style
+# Colors are (light mode, dark mode) pairs, customtkinter picks the right one
+BACKGROUND_COLOR = ("#F3F4F6", "#0F172A")
+CARD_COLOR = ("#FFFFFF", "#1E293B")
+INPUT_COLOR = ("#F9FAFB", "#0F172A")
+BORDER_COLOR = ("#E5E7EB", "#334155")
+TEXT_COLOR = ("#111827", "#F1F5F9")
+MUTED_TEXT_COLOR = ("#6B7280", "#94A3B8")
+HOVER_COLOR = ("#F3F4F6", "#334155")
+ACCENT_COLOR = config.accent_color
+ACCENT_HOVER_COLOR = config.accent_hover_color
+DANGER_COLOR = config.danger_color
+DANGER_HOVER_COLOR = config.danger_hover_color
+SUCCESS_COLOR = config.success_color
+
+FORM_WIDTH = 360
+FIELD_HEIGHT = 40
+
+# Logos for the social login buttons
+PROVIDER_LOGOS = {
+    "google": config.resource_path("images/g.png"),
+    "facebook": config.resource_path("images/fb.png"),
+    "discord": config.resource_path("images/discord.png"),
+}
+
+# Strength meter labels and colors (index = score from password_strength)
+STRENGTH_TEXT = ["Very weak", "Weak", "Fair", "Good", "Strong"]
+STRENGTH_COLORS = ["#EF4444", "#F97316", "#EAB308", "#22C55E", "#16A34A"]
+
+SECURITY_QUESTIONS = ["What is your mother's maiden name?", "What is your favorite pet's name?", "Where were you born?",
+                      "What is your favorite movie?", "What is your favorite book?"]
+
+# ---------------------------------------------------------------- UI helper functions
+
+@lru_cache(maxsize=None)
+def font(size=13, weight="normal"):
+    # Shared fonts, created once and reused
+    return customtkinter.CTkFont(family=config.font_family, size=size, weight=weight)
+
+@lru_cache(maxsize=None)
+def load_image(path, size):
+    # Load an image once and reuse it (the logos are large files)
+    image = Image.open(path)
+    image.thumbnail((size[0] * 2, size[1] * 2), Image.LANCZOS)  # 2x for sharp images on high DPI screens
+    return customtkinter.CTkImage(light_image=image, size=size)
+
+def create_title(master, title, subtitle=""):
+    # Large title with a muted subtitle underneath
+    customtkinter.CTkLabel(master=master, text=title, font=font(26, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x")
+    if subtitle:
+        customtkinter.CTkLabel(master=master, text=subtitle, font=font(13), text_color=MUTED_TEXT_COLOR, anchor="w",
+                               justify="left", wraplength=FORM_WIDTH).pack(fill="x", pady=(2, 0))
+    customtkinter.CTkFrame(master=master, height=14, fg_color="transparent").pack()  # Space under the title
+
+def create_entry(master, placeholder, show="", width=FORM_WIDTH):
+    # Rounded input field
+    return customtkinter.CTkEntry(master=master, width=width, height=FIELD_HEIGHT, placeholder_text=placeholder, show=show,
+                                  corner_radius=8, border_width=1, border_color=BORDER_COLOR, fg_color=INPUT_COLOR,
+                                  text_color=TEXT_COLOR, font=font(13))
+
+def create_combobox(master, variable, values, width=FORM_WIDTH):
+    # Read-only dropdown that matches the input fields
+    return customtkinter.CTkComboBox(master=master, variable=variable, values=values, width=width, height=FIELD_HEIGHT,
+                                     state="readonly", corner_radius=8, border_width=1, border_color=BORDER_COLOR,
+                                     fg_color=INPUT_COLOR, button_color=BORDER_COLOR, button_hover_color=ACCENT_COLOR,
+                                     text_color=TEXT_COLOR, font=font(13), dropdown_font=font(12))
+
+def create_button(master, text, command, style="primary", width=FORM_WIDTH, height=FIELD_HEIGHT, image=None):
+    # Buttons in four styles: primary, secondary, danger and ghost
+    styles = {
+        "primary": {"fg_color": ACCENT_COLOR, "hover_color": ACCENT_HOVER_COLOR, "text_color": "#FFFFFF", "border_width": 0},
+        "secondary": {"fg_color": CARD_COLOR, "hover_color": HOVER_COLOR, "text_color": TEXT_COLOR, "border_width": 1},
+        "danger": {"fg_color": DANGER_COLOR, "hover_color": DANGER_HOVER_COLOR, "text_color": "#FFFFFF", "border_width": 0},
+        "ghost": {"fg_color": "transparent", "hover_color": HOVER_COLOR, "text_color": TEXT_COLOR, "border_width": 0},
+    }
+    return customtkinter.CTkButton(master=master, text=text, command=command, width=width, height=height, corner_radius=8,
+                                   border_color=BORDER_COLOR, font=font(13, "bold"), image=image, **styles[style])
+
+def create_link(master, text, command, size=12):
+    # Clickable text in the accent color
+    link = customtkinter.CTkLabel(master=master, text=text, font=font(size, "bold"), text_color=ACCENT_COLOR, cursor="hand2")
+    link.bind("<Button-1>", lambda event: command())
+    return link
+
+def create_status_label(master):
+    # Label for inline error and success messages (hidden while empty)
+    return customtkinter.CTkLabel(master=master, text="", font=font(12), anchor="w", justify="left", wraplength=FORM_WIDTH)
+
+def show_status(label, text, kind="error"):
+    # Show an error, success or info message in a status label
+    colors = {"error": DANGER_COLOR, "success": SUCCESS_COLOR, "info": MUTED_TEXT_COLOR}
+    label.configure(text=text, text_color=colors[kind])
+
+def create_strength_meter(master, width=FORM_WIDTH):
+    # Thin colored bar with a label that shows password strength
+    meter = customtkinter.CTkFrame(master=master, fg_color="transparent")
+    meter.bar = customtkinter.CTkProgressBar(master=meter, width=width, height=6, corner_radius=3, progress_color=BORDER_COLOR,
+                                             fg_color=BORDER_COLOR)
+    meter.bar.set(0)
+    meter.bar.pack(fill="x", pady=(2, 0))
+    meter.label = customtkinter.CTkLabel(master=meter, text="", font=font(11), height=16, anchor="w", text_color=MUTED_TEXT_COLOR)
+    meter.label.pack(fill="x")
+    return meter
+
+def update_strength_meter(meter, password):
+    # Update the strength meter while the user types
+    if not password:
+        meter.bar.set(0)
+        meter.label.configure(text="")
+        return
+    score = password_strength(password)
+    meter.bar.configure(progress_color=STRENGTH_COLORS[score])
+    meter.bar.set(max(score, 1) / 4)
+    meter.label.configure(text=f"Password strength: {STRENGTH_TEXT[score]}", text_color=STRENGTH_COLORS[score])
+
+def create_appearance_menu(master):
+    # Switch between System, Light and Dark mode
+    menu = customtkinter.CTkOptionMenu(master=master, values=["System", "Light", "Dark"], width=110, height=30, corner_radius=8,
+                                       font=font(12), dropdown_font=font(12), fg_color=CARD_COLOR, button_color=CARD_COLOR,
+                                       button_hover_color=HOVER_COLOR, text_color=TEXT_COLOR,
+                                       command=customtkinter.set_appearance_mode)
+    menu.set(customtkinter.get_appearance_mode() if config.appearance_mode.lower() != "system" else "System")
+    return menu
+
+def create_card(master, title, subtitle=""):
+    # Rounded card with a heading, returns the card and the frame to put content in
+    card = customtkinter.CTkFrame(master=master, fg_color=CARD_COLOR, corner_radius=12, border_width=1, border_color=BORDER_COLOR)
+    customtkinter.CTkLabel(master=card, text=title, font=font(16, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x", padx=24, pady=(20, 0))
+    if subtitle:
+        customtkinter.CTkLabel(master=card, text=subtitle, font=font(12), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=24)
+    body = customtkinter.CTkFrame(master=card, fg_color="transparent")
+    body.pack(fill="both", expand=True, padx=24, pady=(12, 20))
+    return card, body
+
+def run_in_background(widget, task, on_done):
+    # Run a slow task (email, OAuth) in a thread so the window doesn't freeze, then call on_done(result, error) in the UI thread
+    result = {}
+
+    def worker():
+        try:
+            result["value"] = task()
+        except Exception as e:
+            result["error"] = e
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    root = widget.winfo_toplevel()
+
+    def check():
+        if thread.is_alive():
+            root.after(100, check)
+            return
+        try:
+            if widget.winfo_exists():  # The user may have left this screen
+                on_done(result.get("value"), result.get("error"))
+        except tkinter.TclError:
+            pass
+
+    root.after(100, check)
+
+class PasswordDialog(customtkinter.CTkInputDialog):
+    # Input dialog that hides what is typed, used to confirm the password
+    def _create_widgets(self):
+        super()._create_widgets()
+        self._entry.configure(show="*")
+
+# ---------------------------------------------------------------- Shared layouts
+
+class AuthFrame(customtkinter.CTkFrame):
+    # Base layout for every sign-in screen: back button, appearance menu and a centered form
+    def __init__(self, master, window_title, show_back=False):
+        super().__init__(master, fg_color=BACKGROUND_COLOR, corner_radius=0)
+        self.master = master
+        self.master.change_title(f"{window_title} - {config.app_name}")
+        self.master.change_geometry(config.auth_window_size)
+
+        if show_back:
+            self.back_button = create_button(self, "←  Back", self.master.open_main_frame, style="ghost", width=90, height=32)
+            self.back_button.place(x=20, y=20)
+
+        self.appearance_menu = create_appearance_menu(self)
+        self.appearance_menu.place(relx=1.0, x=-20, y=20, anchor="ne")
+
+        self.form = customtkinter.CTkFrame(master=self, fg_color="transparent")
+        self.form.place(relx=0.5, rely=0.5, anchor=tkinter.CENTER)
+
+        # App name above every form
+        customtkinter.CTkLabel(master=self.form, text=config.app_name, font=font(13, "bold"), text_color=ACCENT_COLOR, anchor="w").pack(fill="x")
+
+    def create_footer(self, text, link_text, command):
+        # "No account? Register" style footer under the form
+        footer = customtkinter.CTkFrame(master=self.form, fg_color="transparent")
+        footer.pack(pady=(16, 0))
+        if text:
+            customtkinter.CTkLabel(master=footer, text=text, font=font(12), text_color=MUTED_TEXT_COLOR).pack(side="left", padx=(0, 6))
+        create_link(footer, link_text, command).pack(side="left")
+
+class ChangePasswordForm(customtkinter.CTkFrame):
+    # Change password fields, used after a password reset and on the dashboard
+    def __init__(self, master, username, on_success, password_set=True, width=FORM_WIDTH):
+        super().__init__(master, fg_color="transparent")
+        self.username = username
+        self.on_success = on_success
+        self.password_set = password_set
+
+        # Social login accounts without a password don't need the current password
+        if self.password_set:
+            self.old_block = create_entry(self, "Current or temporary password", show="*", width=width)
+            self.old_block.pack(fill="x", pady=(0, 10))
+
+        self.new_block = create_entry(self, "New password", show="*", width=width)
+        self.new_block.pack(fill="x")
+        self.strength_meter = create_strength_meter(self, width=width)
+        self.strength_meter.pack(fill="x", pady=(0, 6))
+        self.new_block.bind("<KeyRelease>", lambda event: update_strength_meter(self.strength_meter, self.new_block.get()))
+
+        self.confirm_block = create_entry(self, "Confirm new password", show="*", width=width)
+        self.confirm_block.pack(fill="x")
+        self.confirm_block.bind("<Return>", lambda event: self.handle_change_password())
+
+        self.status_label = create_status_label(self)
+        self.status_label.pack(fill="x", pady=(6, 0))
+
+        self.save_button = create_button(self, "Change Password" if self.password_set else "Set Password", self.handle_change_password, width=width)
+        self.save_button.pack(fill="x", pady=(6, 0))
+
+    def handle_change_password(self):
+        old_password = self.old_block.get() if self.password_set else ""
+        new_password = self.new_block.get()
+        confirm_password = self.confirm_block.get()
+
+        if not is_valid_password_chars(new_password):
+            show_status(self.status_label, "Password can't contain spaces or non-English characters.")
+            return
+        if not is_strong_password(new_password):
+            show_status(self.status_label, f"Use at least {config.min_password_length} characters with a letter and a number.")
+            return
+        if new_password != confirm_password:
+            show_status(self.status_label, "Passwords do not match.")
+            return
+
+        success, message = change_password(self.username, old_password, new_password)
+        if success:
+            self.on_success(message)
+        else:
+            show_status(self.status_label, message)
+
+# ---------------------------------------------------------------- Screens
+
+class MainFrame(AuthFrame):
+    def __init__(self, master, message=None, kind="success"):
+        super().__init__(master, "Login")
+        self.setup_login_frame()
+        # Message from the previous screen, e.g. "Registration was successful"
+        if message:
+            show_status(self.error_label, message, kind)
+
+    def setup_login_frame(self):
+        #TOP text
+        create_title(self.form, "Login")
+
+        self.error_label = create_status_label(self.form)
+        self.error_label.pack(fill="x")
+
+        #Username entry block
+        self.u_block = create_entry(self.form, "Username or email")
+        self.u_block.pack(fill="x", pady=(4, 10))
+
+        #Password entry block
+        self.p_block = create_entry(self.form, "Password", show="*")
+        self.p_block.pack(fill="x")
+
+        #Show password checkbox and forgot password link
+        options_row = customtkinter.CTkFrame(master=self.form, fg_color="transparent")
+        options_row.pack(fill="x", pady=10)
+        self.show_password_var = customtkinter.BooleanVar()
+        self.show_password = customtkinter.CTkCheckBox(master=options_row, text="Show password", font=font(12), text_color=MUTED_TEXT_COLOR,
+                                                       checkbox_width=18, checkbox_height=18, corner_radius=5, border_width=2,
+                                                       fg_color=ACCENT_COLOR, hover_color=ACCENT_HOVER_COLOR, variable=self.show_password_var,
+                                                       command=lambda: toggle_password(self.p_block, self.show_password_var))
+        self.show_password.pack(side="left")
+        self.forgot_link = create_link(options_row, "Forgot password?", self.master.open_forgot_password_frame)
+        self.forgot_link.pack(side="right")
+
+        #Login button
+        self.login_button = create_button(self.form, "Login", self.check_login_credentials)
+        self.login_button.pack(fill="x", pady=(4, 0))
+
+        #Social login buttons
+        self.social_buttons = {}
+        providers = get_display_providers()
+        if providers:
+            self.setup_social_buttons(providers)
+
+        self.create_footer("No account?", "Register", self.master.open_register_frame)
+
+        # Press Enter to log in and start typing in the username field straight away
+        self.u_block.bind("<Return>", lambda event: self.p_block.focus())
+        self.p_block.bind("<Return>", lambda event: self.check_login_credentials())
+        self.u_block.focus()
+
+    def setup_social_buttons(self, providers):
+        # "or continue with" divider and one button per provider
+        divider = customtkinter.CTkFrame(master=self.form, fg_color="transparent")
+        divider.pack(fill="x", pady=16)
+        divider.grid_columnconfigure((0, 2), weight=1)
+        customtkinter.CTkFrame(master=divider, height=1, fg_color=BORDER_COLOR).grid(row=0, column=0, sticky="ew")
+        customtkinter.CTkLabel(master=divider, text="or", font=font(12), text_color=MUTED_TEXT_COLOR).grid(row=0, column=1, padx=12)
+        customtkinter.CTkFrame(master=divider, height=1, fg_color=BORDER_COLOR).grid(row=0, column=2, sticky="ew")
+
+        social_row = customtkinter.CTkFrame(master=self.form, fg_color="transparent")
+        social_row.pack(fill="x")
+        button_width = (FORM_WIDTH - 10 * (len(providers) - 1)) // len(providers)
+        for index, provider in enumerate(providers):
+            social_row.grid_columnconfigure(index, weight=1)
+            logo = load_image(PROVIDER_LOGOS[provider], (18, 18)) if provider in PROVIDER_LOGOS else None
+            button = create_button(social_row, get_provider_name(provider), lambda p=provider: self.start_oauth_login(p),
+                                   style="secondary", width=button_width, image=logo)
+            button.grid(row=0, column=index, sticky="ew", padx=(0 if index == 0 else 10, 0))
+            self.social_buttons[provider] = button
+
+    def check_login_credentials(self):
+        # Get the username and password from the input fields
+        username = self.u_block.get().strip()
+        password = self.p_block.get()
+
+        if not username or not password:
+            show_status(self.error_label, "Please enter your username and password.")
+            return
+
+        # Call the check_login function from functions.py
+        status, db_username = check_login(username, password)
+        if status == "ok":
+            # Login successful, open LoggedInFrame
+            self.master.open_loggedin_frame(db_username)
+        elif status == "change_password":
+            # Logged in with a temporary password, a new password must be chosen first
+            self.master.open_change_password_frame(db_username)
+        elif status == "locked":
+            minutes = max(1, round(get_lockout_remaining(db_username) / 60))
+            show_status(self.error_label, f"Too many failed attempts. Try again in {minutes} min.")
+            self.p_block.delete(0, "end")
+        else:
+            # Login failed, show an error message
+            show_status(self.error_label, "Invalid username or password. Please try again.")
+            self.p_block.delete(0, "end")
+
+    def start_oauth_login(self, provider):
+        # Sign in with Google, Facebook or Discord in the browser
+        name = get_provider_name(provider)
+        if not is_provider_configured(provider):
+            show_status(self.error_label, f"{name} sign-in is not set up yet. Add {provider.upper()}_CLIENT_ID and "
+                                          f"{provider.upper()}_CLIENT_SECRET to your .env file.")
+            return
+
+        show_status(self.error_label, f"Complete the {name} sign-in in your browser...", "info")
+        self.set_social_buttons_state("disabled")
+        run_in_background(self, lambda: oauth_login_user(oauth_sign_in(provider)), self.finish_oauth_login)
+
+    def finish_oauth_login(self, result, error):
+        # Called when the browser sign-in has finished
+        self.set_social_buttons_state("normal")
+        if isinstance(error, OAuthError):
+            show_status(self.error_label, str(error))
+            return
+        if error:
+            print("OAuth error:", error)
+            show_status(self.error_label, "Social sign-in failed. Please try again.")
+            return
+
+        status, username = result
+        if status == "email_in_use":
+            show_status(self.error_label, "This email is already registered. Sign in with your password instead.")
+            return
+        self.master.open_loggedin_frame(username)
+
+    def set_social_buttons_state(self, state):
+        # Enable or disable all social login buttons
+        for button in self.social_buttons.values():
+            button.configure(state=state)
+
+class RegisterFrame(AuthFrame):
+    def __init__(self, master):
+        super().__init__(master, "Register", show_back=True)
+        self.setup_register_frame()
+
+    def setup_register_frame(self):
+        half_width = (FORM_WIDTH - 10) // 2
+        create_title(self.form, "Register")
+
+        # Two fields next to each other
+        def create_row():
+            row = customtkinter.CTkFrame(master=self.form, fg_color="transparent")
+            row.pack(fill="x", pady=(0, 10))
+            return row
+
+        name_row = create_row()
+        self.name_entry = create_entry(name_row, "First name", width=half_width)
+        self.name_entry.pack(side="left")
+        self.surname_entry = create_entry(name_row, "Last name", width=half_width)
+        self.surname_entry.pack(side="right")
+
+        account_row = create_row()
+        self.username_entry = create_entry(account_row, "Username", width=half_width)
+        self.username_entry.pack(side="left")
+        # Dropdown with every country
+        self.country_var = customtkinter.StringVar(value="Select Country")
+        self.country_box = create_combobox(account_row, self.country_var, get_countries(), width=half_width)
+        self.country_box.pack(side="right")
+
+        self.email_entry = create_entry(self.form, "Email address")
+        self.email_entry.pack(fill="x", pady=(0, 10))
+
+        password_row = create_row()
+        password_row.pack_configure(pady=0)
+        self.p_block = create_entry(password_row, "Password", show="*", width=half_width)
+        self.p_block.pack(side="left")
+        self.confirm_block = create_entry(password_row, "Confirm password", show="*", width=half_width)
+        self.confirm_block.pack(side="right")
+
+        # Password strength meter, updates on every key press
+        self.strength_meter = create_strength_meter(self.form)
+        self.strength_meter.pack(fill="x", pady=(0, 6))
+        self.p_block.bind("<KeyRelease>", lambda event: update_strength_meter(self.strength_meter, self.p_block.get()))
+
+        self.security_questions = SECURITY_QUESTIONS
+        self.security_question_var = customtkinter.StringVar(value="Select Security Question")
+        self.security_question_dropdown = create_combobox(self.form, self.security_question_var, self.security_questions)
+        self.security_question_dropdown.pack(fill="x", pady=(0, 10))
+
+        # Security Answer entry field
+        self.security_answer_entry = create_entry(self.form, "Security answer")
+        self.security_answer_entry.pack(fill="x")
+
+        self.error_label = create_status_label(self.form)
+        self.error_label.pack(fill="x", pady=(4, 0))
+
+        # Registration button
+        self.register_button = create_button(self.form, "Register", self.new_user_data)
+        self.register_button.pack(fill="x", pady=(4, 0))
+
+        self.create_footer("Have an account?", "Login", self.master.open_main_frame)
+        self.name_entry.focus()
+
+    def new_user_data(self):
+        # Get user inputs from the registration form
+        first_name = self.name_entry.get().strip()
+        last_name = self.surname_entry.get().strip()
+        country = self.country_box.get()
+        username = self.username_entry.get().strip()
+        email = self.email_entry.get().strip()
+        password = self.p_block.get()
+        confirm_password = self.confirm_block.get()
+        security_question = self.security_question_var.get()  # Get the selected security question
+        security_answer = self.security_answer_entry.get().strip()
+
+        if not first_name or not last_name or not username or not password or not security_answer:
+            show_status(self.error_label, "Please fill in all required fields.")
+            return
+        if not is_valid_chars_space(first_name) or not is_valid_chars_space(last_name):
+            show_status(self.error_label, "Names can only use English letters.")
+            return
+        # Check if username contains only English letters and standard characters
+        if not is_valid_chars(username) or not 3 <= len(username) <= 20:
+            show_status(self.error_label, "Username must be 3-20 English letters, digits, '_' or '-' without spaces.")
+            return
+        if not validate_country(country):
+            show_status(self.error_label, "Please select a country.")
+            return
+        if not is_valid_email(email):
+            show_status(self.error_label, "Please enter a valid email address.")
+            return
+        if not is_valid_password_chars(password):
+            show_status(self.error_label, "Password can't contain spaces or non-English characters.")
+            return
+        if not is_strong_password(password):
+            show_status(self.error_label, f"Password needs at least {config.min_password_length} characters with a letter and a number.")
+            return
+        if password != confirm_password:
+            show_status(self.error_label, "Passwords do not match.")
+            return
+        if security_question not in self.security_questions:
+            show_status(self.error_label, "Please select a security question.")
+            return
+        # Tell the user exactly which field is taken
+        if username_exists(username):
+            show_status(self.error_label, "That username is already taken.")
+            return
+        if email_exists(email):
+            show_status(self.error_label, "That email is already registered.")
+            return
+        # Call the register_user function from functions.py
+        if register_user(first_name, last_name, country, username, email, password, security_question, security_answer):
+            # Registration successful
+            self.master.open_main_frame("Registration was successful.")
+        else:
+            show_status(self.error_label, "The username or e-mail already exists.")
+
+
+class ForgotPasswordFrame(AuthFrame):
+    def __init__(self, master):
+        super().__init__(master, "Forgot Password", show_back=True)
+        self.setup_forgot_password_frame()
+
+    def setup_forgot_password_frame(self):
+        create_title(self.form, "Forgot Password", "Enter the email of your account.")
+
+        # Email entry block
+        self.email_block = create_entry(self.form, "Email address")
+        self.email_block.pack(fill="x")
+        self.email_block.bind("<Return>", lambda event: self.handle_reset_password())
+        self.email_block.focus()
+
+        self.error_label = create_status_label(self.form)
+        self.error_label.pack(fill="x", pady=(4, 0))
+
+        # Submit button
+        self.submit_button = create_button(self.form, "Submit", self.handle_reset_password)
+        self.submit_button.pack(fill="x", pady=(4, 0))
+
+        
+    def handle_reset_password(self):
+        # Get the user's email address from the entry field
+        user_email = self.email_block.get().strip()
+        # Validate the format first, so the database is only queried for real emails
+        if not is_valid_email(user_email):
+            show_status(self.error_label, "Please enter a valid email address.")
+            return
+        if not email_exists(user_email):
+            show_status(self.error_label, "No account uses this email address.")
+            return
+        # Accounts created with Google, Facebook or Discord have no security question
+        if not get_security_question(user_email):
+            show_status(self.error_label, "This account was created with a social sign-in. Use that button on the sign-in page.")
+            return
+        # Show the next step/frame
+        self.master.open_forgot_password_frame2(user_email)
+
+class ForgotPasswordFrame2(AuthFrame):
+    def __init__(self, master, user_email):
+        super().__init__(master, "Security Question", show_back=True)
+        self.user_email = user_email
+        self.attempts_left = config.max_security_attempts
+        self.setup_forgot_password_frame2()
+
+    def setup_forgot_password_frame2(self):
+        create_title(self.form, "Security Question", self.user_email)
+
+        # Security Question label
+        security_question = get_security_question(self.user_email)
+        self.security_question_label = customtkinter.CTkLabel(master=self.form, text=security_question, font=font(14, "bold"),
+                                                              text_color=TEXT_COLOR, anchor="w", justify="left", wraplength=FORM_WIDTH)
+        self.security_question_label.pack(fill="x", pady=(0, 10))
+
+        # Security Answer entry block
+        self.security_answer_block = create_entry(self.form, "Your answer")
+        self.security_answer_block.pack(fill="x")
+        self.security_answer_block.bind("<Return>", lambda event: self.handle_reset_password())
+        self.security_answer_block.focus()
+
+        self.error_label = create_status_label(self.form)
+        self.error_label.pack(fill="x", pady=(4, 0))
+
+        # Submit button for step 2
+        self.submit_button2 = create_button(self.form, "Reset Password", self.handle_reset_password)
+        self.submit_button2.pack(fill="x", pady=(4, 0))
+
+    def handle_reset_password(self):
+        # Get the user's security answer
+        user_answer = self.security_answer_block.get()
+
+        # Check if the security answer is correct
+        if check_security_answer(self.user_email, user_answer):
+            # Disable the button while the email is being sent so it can't be clicked twice
+            self.submit_button2.configure(state="disabled", text="Sending...")
+            # Email a temporary password in the background, it is only saved if the email was sent
+            run_in_background(self, lambda: reset_password(self.user_email), self.finish_reset_password)
+        else:
+            # Limit guesses so the security answer can't be brute forced
+            self.attempts_left -= 1
+            if self.attempts_left <= 0:
+                self.master.open_main_frame("Too many wrong answers. Please start again.", "error")
+                return
+            show_status(self.error_label, f"Security answer does not match. {self.attempts_left} attempt(s) left.")
+
+    def finish_reset_password(self, sent, error):
+        # Called when the email has been sent (or failed)
+        if sent and not error:
+            self.master.open_main_frame("A temporary password has been sent to your email.")
+        else:
+            show_status(self.error_label, "Could not send the email. Please check the SMTP settings and try again.")
+            self.submit_button2.configure(state="normal", text="Reset Password")
+
+class ChangePasswordFrame(AuthFrame):
+    # Shown after logging in with a temporary password
+    def __init__(self, master, username):
+        super().__init__(master, "Change Password")
+        self.username = username
+        self.setup_change_password_frame()
+
+    def setup_change_password_frame(self):
+        create_title(self.form, "Change Password", "Choose a new password to replace the temporary one.")
+        self.change_password_form = ChangePasswordForm(self.form, self.username, self.finish_change_password)
+        self.change_password_form.pack(fill="x")
+        self.create_footer("", "Logout", self.master.open_main_frame)
+
+    def finish_change_password(self, message):
+        self.master.open_loggedin_frame(self.username)
+
+class LoggedInFrame(customtkinter.CTkFrame):
+    def __init__(self, master, username):
+        super().__init__(master, fg_color=BACKGROUND_COLOR, corner_radius=0)
+        self.master = master
+        self.username = username
+        self.nav_buttons = {}
+        self.setup_loggedin_frame()
+
+    def setup_loggedin_frame(self):
+        self.master.change_geometry(config.dashboard_window_size)
+        self.master.change_title(f"Dashboard - {config.app_name}")
+        self.user = get_user_data(self.username) or {}
+
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        self.setup_sidebar()
+
+        # Page area on the right
+        self.page_area = customtkinter.CTkFrame(master=self, fg_color="transparent")
+        self.page_area.grid(row=0, column=1, sticky="nsew", padx=36, pady=28)
+        self.page = None
+        self.show_page("profile")
+
+    def setup_sidebar(self):
+        self.sidebar = customtkinter.CTkFrame(master=self, width=250, fg_color=CARD_COLOR, corner_radius=0, border_width=0)
+        self.sidebar.grid(row=0, column=0, sticky="ns")
+        self.sidebar.grid_propagate(False)
+        self.sidebar.pack_propagate(False)
+
+        customtkinter.CTkLabel(master=self.sidebar, text=config.app_name, font=font(16, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x", padx=24, pady=(24, 24))
+
+        # Avatar with the user's initials
+        first_name = self.user.get("first_name") or self.username
+        initials = (first_name[:1] + (self.user.get("last_name") or "")[:1]).upper()
+        self.avatar = customtkinter.CTkLabel(master=self.sidebar, text=initials, width=64, height=64, corner_radius=32,
+                                             fg_color=ACCENT_COLOR, text_color="#FFFFFF", font=font(22, "bold"))
+        self.avatar.pack(padx=24, anchor="w")
+        self.name_label = customtkinter.CTkLabel(master=self.sidebar, text=f"{first_name} {self.user.get('last_name') or ''}".strip(),
+                                                 font=font(15, "bold"), text_color=TEXT_COLOR, anchor="w")
+        self.name_label.pack(fill="x", padx=24, pady=(10, 0))
+        customtkinter.CTkLabel(master=self.sidebar, text=self.user.get("email") or f"@{self.username}", font=font(12),
+                               text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=24, pady=(0, 24))
+
+        # Navigation
+        for page, text in (("profile", "Profile"), ("security", "Security")):
+            button = customtkinter.CTkButton(master=self.sidebar, text=text, height=38, corner_radius=8, anchor="w", font=font(13),
+                                             fg_color="transparent", hover_color=HOVER_COLOR, text_color=TEXT_COLOR,
+                                             command=lambda p=page: self.show_page(p))
+            button.pack(fill="x", padx=16, pady=2)
+            self.nav_buttons[page] = button
+
+        # Bottom of the sidebar
+        self.logout_button = create_button(self.sidebar, "Logout", self.master.open_main_frame, style="secondary", width=218)
+        self.logout_button.pack(side="bottom", padx=16, pady=(8, 24))
+        self.appearance_menu = create_appearance_menu(self.sidebar)
+        self.appearance_menu.configure(width=218)
+        self.appearance_menu.pack(side="bottom", padx=16)
+        customtkinter.CTkLabel(master=self.sidebar, text="Appearance", font=font(11), text_color=MUTED_TEXT_COLOR, anchor="w").pack(side="bottom", fill="x", padx=18)
+
+    def show_page(self, page):
+        # Switch between the dashboard pages
+        if self.page is not None:
+            self.page.destroy()
+        for name, button in self.nav_buttons.items():
+            button.configure(fg_color=HOVER_COLOR if name == page else "transparent", font=font(13, "bold" if name == page else "normal"))
+
+        self.page = customtkinter.CTkFrame(master=self.page_area, fg_color="transparent")
+        self.page.pack(fill="both", expand=True)
+        if page == "profile":
+            self.setup_profile_page()
+        else:
+            self.setup_security_page()
+
+    def create_page_header(self, title):
+        customtkinter.CTkLabel(master=self.page, text=title, font=font(24, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x", pady=(0, 18))
+
+    def setup_profile_page(self):
+        self.create_page_header("Profile")
+
+        # Read only account details
+        details_card, details = create_card(self.page, "Account")
+        details_card.pack(fill="x")
+        provider = self.user.get("oauth_provider")
+        sign_in_method = "Password" + (f" and {get_provider_name(provider)}" if provider else "")
+        if provider and not self.user.get("password_set"):
+            sign_in_method = get_provider_name(provider)
+        rows = (("Username", self.user.get("username", "")), ("Email", self.user.get("email") or "Not provided"),
+                ("Sign-in method", sign_in_method), ("Member since", self.user.get("created_at") or "Unknown"),
+                ("Last login", self.user.get("last_login") or "Unknown"))
+        for index, (label, value) in enumerate(rows):
+            column = (index % 3) * 2
+            customtkinter.CTkLabel(master=details, text=label, font=font(11), text_color=MUTED_TEXT_COLOR, anchor="w").grid(row=(index // 3) * 2, column=column, sticky="w", padx=(0, 40))
+            customtkinter.CTkLabel(master=details, text=value, font=font(13, "bold"), text_color=TEXT_COLOR, anchor="w").grid(row=(index // 3) * 2 + 1, column=column, sticky="w", padx=(0, 40), pady=(0, 10))
+
+        # Editable fields
+        profile_card, profile = create_card(self.page, "Personal Information")
+        profile_card.pack(fill="x", pady=(16, 0))
+        field_width = 220
+        self.name_entry = create_entry(profile, "First name", width=field_width)
+        if self.user.get("first_name"):  # Inserting an empty value would hide the placeholder
+            self.name_entry.insert(0, self.user["first_name"])
+        self.name_entry.grid(row=0, column=0, padx=(0, 12))
+        self.surname_entry = create_entry(profile, "Last name", width=field_width)
+        if self.user.get("last_name"):  # Inserting an empty value would hide the placeholder
+            self.surname_entry.insert(0, self.user["last_name"])
+        self.surname_entry.grid(row=0, column=1, padx=(0, 12))
+        self.country_var = customtkinter.StringVar(value=self.user.get("country") or "Select Country")
+        self.country_box = create_combobox(profile, self.country_var, get_countries(), width=field_width)
+        self.country_box.grid(row=0, column=2)
+
+        self.profile_status = create_status_label(profile)
+        self.profile_status.grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0))
+        self.save_button = create_button(profile, "Save", self.save_profile, width=140)
+        self.save_button.grid(row=1, column=2, sticky="e", pady=(10, 0))
+
+    def setup_security_page(self):
+        self.create_page_header("Security")
+        self.user = get_user_data(self.username) or self.user  # Refresh in case the password was just set
+
+        # Change (or set) password
+        password_set = bool(self.user.get("password_set", 1))
+        title = "Change Password" if password_set else "Set Password"
+        password_card, password_body = create_card(self.page, title)
+        password_card.pack(fill="x")
+        self.change_password_form = ChangePasswordForm(password_body, self.username, self.finish_change_password, password_set=password_set, width=400)
+        self.change_password_form.pack(anchor="w")
+
+        # Delete account
+        danger_card, danger_body = create_card(self.page, "Delete Account")
+        danger_card.pack(fill="x", pady=(16, 0))
+        self.delete_button = create_button(danger_body, "Delete Account", self.handle_delete_account, style="danger", width=160)
+        self.delete_button.pack(anchor="w")
+
+    def finish_change_password(self, message):
+        # Rebuild the page so it shows the right form, then show the message
+        self.show_page("security")
+        show_status(self.change_password_form.status_label, message, "success")
+
+    def save_profile(self):
+        first_name = self.name_entry.get().strip()
+        last_name = self.surname_entry.get().strip()
+        country = self.country_box.get()
+
+        if not first_name or not last_name:
+            show_status(self.profile_status, "Please fill in all required fields.")
+            return
+        if not is_valid_chars_space(first_name) or not is_valid_chars_space(last_name):
+            show_status(self.profile_status, "Names can only use English letters.")
+            return
+        if not validate_country(country):
+            show_status(self.profile_status, "Please select a country.")
+            return
+
+        if update_user_profile(self.username, first_name, last_name, country):
+            self.user.update(first_name=first_name, last_name=last_name, country=country)
+            self.name_label.configure(text=f"{first_name} {last_name}")
+            self.avatar.configure(text=(first_name[:1] + last_name[:1]).upper())
+            show_status(self.profile_status, "Profile updated.", "success")
+        else:
+            show_status(self.profile_status, "Could not update your profile.")
+
+    def handle_delete_account(self):
+        # Ask twice: a yes/no confirmation and the password (or username for social login accounts)
+        if not messagebox.askyesno("Delete Account", "This will permanently delete your account. Continue?"):
+            return
+        if self.user.get("password_set", 1):
+            dialog = PasswordDialog(text="Enter your password to confirm:", title="Delete Account")
+        else:
+            dialog = customtkinter.CTkInputDialog(text=f"Type your username ({self.username}) to confirm:", title="Delete Account")
+        confirmation = dialog.get_input()
+        if not confirmation:
+            return
+        if delete_user(self.username, confirmation):
+            self.master.open_main_frame("Your account has been deleted.")
+        else:
+            messagebox.showerror("Error", "Confirmation did not match.")
