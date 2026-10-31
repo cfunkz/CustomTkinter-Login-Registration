@@ -9,6 +9,7 @@ This includes a sqlite3 database setup with many functions including saving the 
 
 ## Table of Contents
 
+- [Screenshots](#screenshots)
 - [Prerequisites](#prerequisites)
 - [Features](#features)
 - [Security](#security)
@@ -26,6 +27,12 @@ This includes a sqlite3 database setup with many functions including saving the 
 - [UI Functions](#ui-functions)
 - [Upgrading From an Older Version](#upgrading-from-an-older-version)
 - [Contributing](#contributing)
+
+## Screenshots
+
+![Screenshot 1](images/screenshots/image.png)
+![Screenshot 2](images/screenshots/image2.png)
+![Screenshot 3](images/screenshots/image3.png)
 
 ## Prerequisites
 
@@ -111,7 +118,7 @@ config.py         # Every setting, reads .env for values you change
 requirements.txt  # Python packages
 build.py          # Builds the one-file .exe with PyInstaller
 build.bat         # Windows: double-click to build the .exe
-images/           # Login button logos
+images/           # Login button logos and screenshots
 ```
 
 ## Installation
