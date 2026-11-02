@@ -5,6 +5,8 @@ import secrets
 import string
 import time
 import re
+import json
+from datetime import datetime
 from functools import lru_cache
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -145,8 +147,10 @@ def check_login(username, password):
                 return "invalid", None
 
             # Successful login: reset the counter and save the login time
-            cursor.execute("UPDATE Users SET failed_attempts = 0, locked_until = 0, last_login = ? WHERE username = ?",
-                           (now(), db_username))
+            cursor.execute('''
+                UPDATE Users SET failed_attempts = 0, locked_until = 0, last_login = ?, login_count = COALESCE(login_count, 0) + 1
+                WHERE username = ?
+            ''', (now(), db_username))
 
             # Upgrade a legacy plain-text password to a hash
             if not is_hashed(stored_password):
@@ -258,7 +262,7 @@ def get_user_data(username):
     with database() as cursor:
         cursor.execute('''
             SELECT first_name, last_name, country, username, email, security_question, created_at, last_login,
-                   oauth_provider, password_set
+                   oauth_provider, password_set, bio, login_count
             FROM Users WHERE LOWER(username) = LOWER(?)
         ''', (username,))
         result = cursor.fetchone()
@@ -273,6 +277,21 @@ def update_user_profile(username, first_name, last_name, country):
         cursor.execute("UPDATE Users SET first_name = ?, last_name = ?, country = ? WHERE LOWER(username) = LOWER(?)",
                        (first_name.strip(), last_name.strip(), country, username))
         return cursor.rowcount > 0
+
+def update_bio(username, bio):
+    # Save the short "About me" text
+    with database() as cursor:
+        cursor.execute("UPDATE Users SET bio = ? WHERE LOWER(username) = LOWER(?)", (bio.strip()[:config.bio_max_length], username))
+        return cursor.rowcount > 0
+
+def export_user_data(username, path):
+    # Save the user's profile as a JSON file (no password or security answer)
+    user = get_user_data(username)
+    if not user:
+        return False
+    with open(path, "w", encoding="utf-8") as export_file:
+        json.dump(user, export_file, indent=2, default=str)
+    return True
 
 def delete_user(username, confirmation):
     # Delete an account after confirming the password (or the username for social login accounts without a password)
@@ -313,7 +332,10 @@ def oauth_login_user(profile):
         cursor.execute("SELECT username FROM Users WHERE oauth_provider = ? AND oauth_id = ?", (provider, oauth_id))
         result = cursor.fetchone()
         if result:
-            cursor.execute("UPDATE Users SET last_login = ?, failed_attempts = 0, locked_until = 0 WHERE username = ?", (now(), result[0]))
+            cursor.execute('''
+                UPDATE Users SET last_login = ?, failed_attempts = 0, locked_until = 0, login_count = COALESCE(login_count, 0) + 1
+                WHERE username = ?
+            ''', (now(), result[0]))
             return "ok", result[0]
 
         # 2. An account with the same verified email exists, link the provider to it
@@ -322,7 +344,8 @@ def oauth_login_user(profile):
         if result:
             if result[1] is None and profile.get("email_verified") and config.oauth_link_by_email:
                 cursor.execute('''
-                    UPDATE Users SET oauth_provider = ?, oauth_id = ?, last_login = ?, failed_attempts = 0, locked_until = 0
+                    UPDATE Users SET oauth_provider = ?, oauth_id = ?, last_login = ?, failed_attempts = 0, locked_until = 0,
+                                     login_count = COALESCE(login_count, 0) + 1
                     WHERE username = ?
                 ''', (provider, oauth_id, now(), result[0]))
                 return "linked", result[0]
@@ -334,8 +357,8 @@ def oauth_login_user(profile):
     with database() as cursor:
         cursor.execute('''
             INSERT INTO Users (first_name, last_name, country, username, email, password, created_at, last_login,
-                               oauth_provider, oauth_id, password_set)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                               oauth_provider, oauth_id, password_set, login_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)
         ''', ((profile.get("first_name") or username).strip(), (profile.get("last_name") or "").strip(), "", username, email,
               hash_password(secrets.token_urlsafe(32)), now(), now(), provider, oauth_id))
     return "created", username
@@ -415,3 +438,85 @@ def password_strength(password):
     if any(char.isdigit() for char in password) and any(not char.isalnum() for char in password):
         score += 1
     return score
+
+# ---------------------------------------------------------------- Profile helpers
+
+def parse_date(date_text):
+    # Turn "2024-01-31 12:00:00" back into a datetime, None if it is empty or invalid
+    try:
+        return datetime.strptime(str(date_text), "%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return None
+
+def days_since(date_text):
+    # Whole days between a saved date and now
+    date = parse_date(date_text)
+    return max(0, (datetime.now() - date).days) if date else 0
+
+def time_ago(date_text):
+    # "just now", "5 min ago", "3 hours ago", "2 days ago" or the date for anything older than a month
+    date = parse_date(date_text)
+    if not date:
+        return "Never"
+    seconds = max(0, int((datetime.now() - date).total_seconds()))
+    if seconds < 60:
+        return "Just now"
+    if seconds < 3600:
+        return f"{seconds // 60} min ago"
+    if seconds < 86400:
+        hours = seconds // 3600
+        return f"{hours} hour{'s' if hours > 1 else ''} ago"
+    days = seconds // 86400
+    if days < 30:
+        return f"{days} day{'s' if days > 1 else ''} ago"
+    return date.strftime("%d %b %Y")
+
+def format_date(date_text):
+    # "2024-01-31 12:00:00" to "31 Jan 2024"
+    date = parse_date(date_text)
+    return date.strftime("%d %b %Y") if date else "Unknown"
+
+def get_greeting(hour=None):
+    # Greeting for the time of day
+    hour = datetime.now().hour if hour is None else hour
+    if hour < 12:
+        return "Good morning"
+    if hour < 18:
+        return "Good afternoon"
+    return "Good evening"
+
+def get_initials(user, username=""):
+    # "John Smith" to "JS", falls back to the username
+    first_name = (user.get("first_name") or username or "?").strip()
+    last_name = (user.get("last_name") or "").strip()
+    return (first_name[:1] + last_name[:1]).upper()
+
+def profile_completion(user):
+    # Checklist of profile items and how many percent are done
+    items = [
+        ("First and last name", bool(user.get("first_name") and user.get("last_name"))),
+        ("Country", validate_country(user.get("country") or "")),
+        ("Email address", bool(user.get("email"))),
+        ("About me", bool((user.get("bio") or "").strip())),
+        ("Password", bool(user.get("password_set", 1))),
+        ("Security question", bool(user.get("security_question"))),
+    ]
+    percent = round(100 * sum(done for label, done in items) / len(items))
+    return percent, items
+
+def security_score(user):
+    # Simple account security score from 0 to 100 and a label
+    score = 0
+    if user.get("password_set", 1):
+        score += 40
+    if user.get("security_question"):
+        score += 30
+    if user.get("email"):
+        score += 15
+    if user.get("oauth_provider"):
+        score += 15
+    if score >= 80:
+        return score, "Strong"
+    if score >= 50:
+        return score, "Good"
+    return score, "Weak"

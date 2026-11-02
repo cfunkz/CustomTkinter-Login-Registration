@@ -102,12 +102,15 @@ def init_database():
                 oauth_provider VARCHAR(20),
                 oauth_id VARCHAR(100),
                 password_set INTEGER DEFAULT 1,
+                bio VARCHAR(255),
+                login_count INTEGER DEFAULT 0,
                 UNIQUE (oauth_provider, oauth_id)
             )
         ''')
 
         if DATABASE_TYPE == "sqlite":
             upgrade_sqlite_database(cursor)
+        add_missing_columns(cursor, PROFILE_COLUMNS)
         if DATABASE_TYPE in ("sqlite", "postgres"):
             # Case-insensitive usernames and emails ("Bob" and "bob" are the same user)
             # MySQL compares text case-insensitively by default, so it doesn't need these
@@ -117,6 +120,20 @@ def init_database():
             except IntegrityError:
                 # An old database already has names that only differ by case, keep the original UNIQUE rules
                 print("Skipping case-insensitive indexes: duplicate usernames or emails found.")
+
+# Profile columns added later, on every database type
+PROFILE_COLUMNS = {
+    "bio": "VARCHAR(255)",  # Short "About me" text
+    "login_count": "INTEGER DEFAULT 0",
+}
+
+def add_missing_columns(cursor, columns):
+    # Add columns that an older Users table doesn't have (works on SQLite, PostgreSQL and MySQL)
+    cursor.execute("SELECT * FROM Users WHERE 1 = 0")
+    existing_columns = {column[0].lower() for column in cursor.description}
+    for column, column_type in columns.items():
+        if column not in existing_columns:
+            cursor.execute(f"ALTER TABLE Users ADD COLUMN {column} {column_type}")
 
 def upgrade_sqlite_database(cursor):
     # Add columns that older versions of user_database.db don't have
