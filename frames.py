@@ -15,38 +15,41 @@ from oauth import oauth_sign_in, get_display_providers, get_provider_name, is_pr
 
 # ---------------------------------------------------------------- Style
 def mix_color(color, other, amount):
-    # Blend two hex colors, amount 0 = color, 1 = other (used for the soft "glass" tints)
+    # Blend two hex colors, amount 0 = color, 1 = other (used for the soft tints)
     first = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
     second = [int(other[i:i + 2], 16) for i in (1, 3, 5)]
     return "#" + "".join(f"{round(a + (b - a) * amount):02X}" for a, b in zip(first, second))
 
 # Colors are (light mode, dark mode) pairs, customtkinter picks the right one
-# Frosted glass look: a deep background, slightly lighter panels and soft borders that catch the light
-BACKGROUND_COLOR = ("#E9EEF7", "#0A0F1E")
-CARD_COLOR = ("#F8FAFE", "#131A2D")
-INPUT_COLOR = ("#EEF2F9", "#0E1426")
-BORDER_COLOR = ("#D5DDEB", "#253050")
-TEXT_COLOR = ("#0F172A", "#EEF2FF")
-MUTED_TEXT_COLOR = ("#64748B", "#8B97B5")
-HOVER_COLOR = ("#E2E8F3", "#1C2541")
+# Block style: paper / ink colors, near-square corners and solid offset shadows behind the panels
+BACKGROUND_COLOR = ("#F2EEE6", "#0E0E10")
+CARD_COLOR = ("#FFFFFF", "#18181B")
+INPUT_COLOR = ("#F7F5F0", "#111113")
+BORDER_COLOR = ("#1A1A1A", "#33333A")
+TEXT_COLOR = ("#141414", "#F2F0EB")
+MUTED_TEXT_COLOR = ("#6B6760", "#8E8C87")
+HOVER_COLOR = ("#ECE7DD", "#232328")
+SCROLLBAR_COLOR = ("#D6CFC2", "#2A2A30")  # Scrollbars, empty progress bars and dropdown buttons
 ACCENT_COLOR = config.accent_color
 ACCENT_HOVER_COLOR = config.accent_hover_color
-ACCENT_SOFT_COLOR = (mix_color(ACCENT_COLOR, "#FFFFFF", 0.82), mix_color(ACCENT_COLOR, "#0A0F1E", 0.72))
+ACCENT_SOFT_COLOR = (mix_color(ACCENT_COLOR, "#FFFFFF", 0.82), mix_color(ACCENT_COLOR, "#18181B", 0.75))
+SHADOW_COLOR = ("#1A1A1A", mix_color(ACCENT_COLOR, "#0E0E10", 0.55))
 DANGER_COLOR = config.danger_color
 DANGER_HOVER_COLOR = config.danger_hover_color
 SUCCESS_COLOR = config.success_color
 WARNING_COLOR = "#F59E0B"
 
 # Hero banner on the profile page
-BANNER_COLOR = (ACCENT_COLOR, mix_color(ACCENT_COLOR, "#0A0F1E", 0.35))
-BANNER_BORDER_COLOR = (mix_color(ACCENT_COLOR, "#FFFFFF", 0.35), mix_color(ACCENT_COLOR, "#FFFFFF", 0.15))
-BANNER_CHIP_COLOR = (mix_color(ACCENT_COLOR, "#FFFFFF", 0.2), mix_color(ACCENT_COLOR, "#0A0F1E", 0.15))
+BANNER_COLOR = ACCENT_COLOR
+BANNER_BORDER_COLOR = ("#1A1A1A", mix_color(ACCENT_COLOR, "#FFFFFF", 0.3))
+BANNER_CHIP_COLOR = mix_color(ACCENT_COLOR, "#000000", 0.2)
 BANNER_TEXT_COLOR = "#FFFFFF"
-BANNER_MUTED_COLOR = ("#E0E7FF", "#C7D2FE")
+BANNER_MUTED_COLOR = mix_color(ACCENT_COLOR, "#FFFFFF", 0.75)
 
-# Rounded but not round: "squircle" style corners
-CARD_RADIUS = 18
-WIDGET_RADIUS = 12
+# Almost square corners
+CARD_RADIUS = 6
+WIDGET_RADIUS = 4
+SHADOW_OFFSET = 5
 
 FORM_WIDTH = 360
 FIELD_HEIGHT = 42
@@ -73,6 +76,11 @@ def font(size=13, weight="normal"):
     return customtkinter.CTkFont(family=config.font_family, size=size, weight=weight)
 
 @lru_cache(maxsize=None)
+def mono(size=11, weight="bold"):
+    # Monospace font for labels and numbers
+    return customtkinter.CTkFont(family=config.mono_font_family, size=size, weight=weight)
+
+@lru_cache(maxsize=None)
 def load_image(path, size):
     # Load an image once and reuse it (the logos are large files)
     image = Image.open(path)
@@ -97,19 +105,19 @@ def create_combobox(master, variable, values, width=FORM_WIDTH):
     # Read-only dropdown that matches the input fields
     return customtkinter.CTkComboBox(master=master, variable=variable, values=values, width=width, height=FIELD_HEIGHT,
                                      state="readonly", corner_radius=WIDGET_RADIUS, border_width=1, border_color=BORDER_COLOR,
-                                     fg_color=INPUT_COLOR, button_color=BORDER_COLOR, button_hover_color=ACCENT_COLOR,
+                                     fg_color=INPUT_COLOR, button_color=SCROLLBAR_COLOR, button_hover_color=ACCENT_COLOR,
                                      text_color=TEXT_COLOR, font=font(13), dropdown_font=font(12))
 
 def create_button(master, text, command, style="primary", width=FORM_WIDTH, height=FIELD_HEIGHT, image=None):
-    # Buttons in five styles: primary, secondary, danger, ghost and glass (on the profile banner)
+    # Buttons in five styles: primary, secondary, danger, ghost and banner (on the profile banner)
     styles = {
         "primary": {"fg_color": ACCENT_COLOR, "hover_color": ACCENT_HOVER_COLOR, "text_color": "#FFFFFF", "border_width": 0},
         "secondary": {"fg_color": CARD_COLOR, "hover_color": HOVER_COLOR, "text_color": TEXT_COLOR, "border_width": 1},
         "danger": {"fg_color": DANGER_COLOR, "hover_color": DANGER_HOVER_COLOR, "text_color": "#FFFFFF", "border_width": 0},
         "ghost": {"fg_color": "transparent", "hover_color": HOVER_COLOR, "text_color": TEXT_COLOR, "border_width": 0},
-        "glass": {"fg_color": BANNER_CHIP_COLOR, "hover_color": BANNER_BORDER_COLOR, "text_color": BANNER_TEXT_COLOR, "border_width": 1},
+        "banner": {"fg_color": BANNER_CHIP_COLOR, "hover_color": BANNER_BORDER_COLOR, "text_color": BANNER_TEXT_COLOR, "border_width": 1},
     }
-    border_color = BANNER_BORDER_COLOR if style == "glass" else BORDER_COLOR
+    border_color = BANNER_BORDER_COLOR if style == "banner" else BORDER_COLOR
     return customtkinter.CTkButton(master=master, text=text, command=command, width=width, height=height, corner_radius=WIDGET_RADIUS,
                                    border_color=border_color, font=font(13, "bold"), image=image, **styles[style])
 
@@ -131,8 +139,8 @@ def show_status(label, text, kind="error"):
 def create_strength_meter(master, width=FORM_WIDTH):
     # Thin colored bar with a label that shows password strength
     meter = customtkinter.CTkFrame(master=master, fg_color="transparent")
-    meter.bar = customtkinter.CTkProgressBar(master=meter, width=width, height=6, corner_radius=3, progress_color=BORDER_COLOR,
-                                             fg_color=BORDER_COLOR)
+    meter.bar = customtkinter.CTkProgressBar(master=meter, width=width, height=6, corner_radius=0, progress_color=SCROLLBAR_COLOR,
+                                             fg_color=SCROLLBAR_COLOR)
     meter.bar.set(0)
     meter.bar.pack(fill="x", pady=(2, 0))
     meter.label = customtkinter.CTkLabel(master=meter, text="", font=font(11), height=16, anchor="w", text_color=MUTED_TEXT_COLOR)
@@ -159,35 +167,50 @@ def create_appearance_menu(master):
     menu.set(customtkinter.get_appearance_mode() if config.appearance_mode.lower() != "system" else "System")
     return menu
 
-def create_glass_frame(master, radius=CARD_RADIUS, **kwargs):
-    # Frosted glass panel: soft tint, rounded corners and a thin light border
-    options = {"fg_color": CARD_COLOR, "corner_radius": radius, "border_width": 1, "border_color": BORDER_COLOR}
+def create_panel(master, shadow=True, **kwargs):
+    # Bordered panel with a solid shadow offset to the bottom right
+    # Returns (outer, inner): place the outer frame, put content in the inner one
+    outer = customtkinter.CTkFrame(master=master, fg_color="transparent")
+    outer.grid_columnconfigure(0, weight=1)
+    outer.grid_rowconfigure(0, weight=1)
+    offset = SHADOW_OFFSET if shadow else 0
+    if shadow:
+        customtkinter.CTkFrame(master=outer, width=1, height=1, fg_color=SHADOW_COLOR, corner_radius=CARD_RADIUS).grid(row=0, column=0, sticky="nsew", padx=(offset, 0), pady=(offset, 0))
+    options = {"fg_color": CARD_COLOR, "corner_radius": CARD_RADIUS, "border_width": 1, "border_color": BORDER_COLOR}
     options.update(kwargs)
-    return customtkinter.CTkFrame(master=master, **options)
+    inner = customtkinter.CTkFrame(master=outer, **options)
+    inner.grid(row=0, column=0, sticky="nsew", padx=(0, offset), pady=(0, offset))
+    return outer, inner
+
+def create_section_label(master, text, color=ACCENT_COLOR):
+    # Small square marker and an uppercase monospace label, e.g. "■ ABOUT ME"
+    return customtkinter.CTkLabel(master=master, text=f"■ {text.upper()}", font=mono(11), text_color=color, anchor="w")
 
 def create_card(master, title, subtitle=""):
-    # Rounded glass card with a heading, returns the card and the frame to put content in
-    card = create_glass_frame(master)
-    customtkinter.CTkLabel(master=card, text=title, font=font(16, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x", padx=24, pady=(20, 0))
+    # Panel with a heading, returns the outer frame (to place) and the frame to put content in
+    card, inner = create_panel(master)
+    create_section_label(inner, title).pack(fill="x", padx=24, pady=(18, 0))
     if subtitle:
-        customtkinter.CTkLabel(master=card, text=subtitle, font=font(12), text_color=MUTED_TEXT_COLOR, anchor="w",
-                               justify="left").pack(fill="x", padx=24)
-    body = customtkinter.CTkFrame(master=card, fg_color="transparent")
+        customtkinter.CTkLabel(master=inner, text=subtitle, font=font(13), text_color=TEXT_COLOR, anchor="w",
+                               justify="left").pack(fill="x", padx=24, pady=(2, 0))
+    body = customtkinter.CTkFrame(master=inner, fg_color="transparent")
     body.pack(fill="both", expand=True, padx=24, pady=(12, 20))
     return card, body
 
 def create_chip(master, text, fg_color=ACCENT_SOFT_COLOR, text_color=TEXT_COLOR):
-    # Small rounded "pill" label
-    return customtkinter.CTkLabel(master=master, text=f"  {text}  ", height=26, corner_radius=WIDGET_RADIUS - 2, fg_color=fg_color,
-                                  text_color=text_color, font=font(12, "bold"))
+    # Small square "tag" label
+    return customtkinter.CTkLabel(master=master, text=f" {text} ", height=24, corner_radius=2, fg_color=fg_color,
+                                  text_color=text_color, font=mono(11))
 
 def create_stat_tile(master, title, value, caption, color=ACCENT_COLOR):
-    # Glass tile with a big number, used in the stats row
-    tile = create_glass_frame(master, radius=16)
-    customtkinter.CTkFrame(master=tile, width=28, height=4, corner_radius=2, fg_color=color).pack(anchor="w", padx=18, pady=(16, 0))
-    customtkinter.CTkLabel(master=tile, text=title.upper(), font=font(10, "bold"), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=18, pady=(8, 0))
-    customtkinter.CTkLabel(master=tile, text=value, font=font(24, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x", padx=18)
-    customtkinter.CTkLabel(master=tile, text=caption, font=font(11), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=18, pady=(0, 14))
+    # Panel with a big number, used in the stats row
+    tile, inner = create_panel(master)
+    header = customtkinter.CTkFrame(master=inner, fg_color="transparent")
+    header.pack(fill="x", padx=18, pady=(16, 0))
+    customtkinter.CTkFrame(master=header, width=10, height=10, corner_radius=0, fg_color=color).pack(side="left", padx=(0, 8))
+    customtkinter.CTkLabel(master=header, text=title.upper(), font=mono(10), text_color=MUTED_TEXT_COLOR, anchor="w").pack(side="left")
+    customtkinter.CTkLabel(master=inner, text=value, font=mono(26), text_color=TEXT_COLOR, anchor="w").pack(fill="x", padx=18, pady=(6, 0))
+    customtkinter.CTkLabel(master=inner, text=caption, font=font(11), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=18, pady=(0, 14))
     return tile
 
 def run_in_background(widget, task, on_done):
@@ -239,14 +262,14 @@ class AuthFrame(customtkinter.CTkFrame):
         self.appearance_menu = create_appearance_menu(self)
         self.appearance_menu.place(relx=1.0, x=-20, y=20, anchor="ne")
 
-        # The form sits on a rounded glass card in the middle of the window
-        self.card = create_glass_frame(self, radius=22)
-        self.card.place(relx=0.5, rely=0.52, anchor=tkinter.CENTER)
+        # The form sits on a panel in the middle of the window
+        self.card_panel, self.card = create_panel(self)
+        self.card_panel.place(relx=0.5, rely=0.52, anchor=tkinter.CENTER)
         self.form = customtkinter.CTkFrame(master=self.card, fg_color="transparent")
         self.form.pack(padx=34, pady=(26, 28))
 
         # App name above every form
-        customtkinter.CTkLabel(master=self.form, text=config.app_name, font=font(13, "bold"), text_color=ACCENT_COLOR, anchor="w").pack(fill="x")
+        create_section_label(self.form, config.app_name).pack(fill="x")
 
     def create_footer(self, text, link_text, command):
         # "No account? Register" style footer under the form
@@ -336,7 +359,7 @@ class MainFrame(AuthFrame):
         options_row.pack(fill="x", pady=10)
         self.show_password_var = customtkinter.BooleanVar()
         self.show_password = customtkinter.CTkCheckBox(master=options_row, text="Show password", font=font(12), text_color=MUTED_TEXT_COLOR,
-                                                       checkbox_width=18, checkbox_height=18, corner_radius=5, border_width=2,
+                                                       checkbox_width=18, checkbox_height=18, corner_radius=2, border_width=2,
                                                        fg_color=ACCENT_COLOR, hover_color=ACCENT_HOVER_COLOR, variable=self.show_password_var,
                                                        command=lambda: toggle_password(self.p_block, self.show_password_var))
         self.show_password.pack(side="left")
@@ -688,36 +711,37 @@ class LoggedInFrame(customtkinter.CTkFrame):
 
         # Page area on the right
         self.page_area = customtkinter.CTkFrame(master=self, fg_color="transparent")
-        self.page_area.grid(row=0, column=1, sticky="nsew", padx=(20, 16), pady=16)
+        self.page_area.grid(row=0, column=1, sticky="nsew", padx=(28, 16), pady=(20, 12))
         self.page = None
         self.current_page = None
         self.show_page("profile")
 
     def setup_sidebar(self):
-        # Floating glass sidebar with rounded corners
-        self.sidebar = create_glass_frame(self, radius=22, width=240)
-        self.sidebar.grid(row=0, column=0, sticky="ns", padx=(16, 0), pady=16)
+        # Full height sidebar with a line on the right
+        self.sidebar = customtkinter.CTkFrame(master=self, width=240, fg_color=CARD_COLOR, corner_radius=0)
+        self.sidebar.grid(row=0, column=0, sticky="ns")
+        customtkinter.CTkFrame(master=self, width=1, fg_color=BORDER_COLOR, corner_radius=0).grid(row=0, column=0, sticky="nse")
         self.sidebar.grid_propagate(False)
         self.sidebar.pack_propagate(False)
 
         # App name with a small accent mark
         brand = customtkinter.CTkFrame(master=self.sidebar, fg_color="transparent")
         brand.pack(fill="x", padx=22, pady=(24, 26))
-        customtkinter.CTkLabel(master=brand, text="", width=12, height=12, corner_radius=4, fg_color=ACCENT_COLOR).pack(side="left", padx=(0, 10))
+        customtkinter.CTkLabel(master=brand, text="", width=14, height=14, corner_radius=0, fg_color=ACCENT_COLOR).pack(side="left", padx=(0, 10))
         customtkinter.CTkLabel(master=brand, text=config.app_name, font=font(16, "bold"), text_color=TEXT_COLOR, anchor="w").pack(side="left")
 
         # Avatar with the user's initials
         self.avatar = customtkinter.CTkLabel(master=self.sidebar, text=get_initials(self.user, self.username), width=60, height=60,
-                                             corner_radius=20, fg_color=ACCENT_COLOR, text_color="#FFFFFF", font=font(20, "bold"))
+                                             corner_radius=WIDGET_RADIUS, fg_color=ACCENT_COLOR, text_color="#FFFFFF", font=mono(20))
         self.avatar.pack(padx=22, anchor="w")
         self.name_label = customtkinter.CTkLabel(master=self.sidebar, text=self.get_full_name(), font=font(15, "bold"),
                                                  text_color=TEXT_COLOR, anchor="w")
         self.name_label.pack(fill="x", padx=22, pady=(10, 0))
-        customtkinter.CTkLabel(master=self.sidebar, text=f"@{self.username}", font=font(12), text_color=MUTED_TEXT_COLOR,
+        customtkinter.CTkLabel(master=self.sidebar, text=f"@{self.username}", font=mono(11, "normal"), text_color=MUTED_TEXT_COLOR,
                                anchor="w").pack(fill="x", padx=22, pady=(0, 22))
 
         # Navigation
-        customtkinter.CTkLabel(master=self.sidebar, text="MENU", font=font(10, "bold"), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=24, pady=(0, 4))
+        customtkinter.CTkLabel(master=self.sidebar, text="MENU", font=mono(10), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=24, pady=(0, 4))
         for page, text in (("profile", "Profile"), ("security", "Security")):
             button = customtkinter.CTkButton(master=self.sidebar, text=text, height=40, corner_radius=WIDGET_RADIUS, anchor="w", font=font(13),
                                              fg_color="transparent", hover_color=HOVER_COLOR, text_color=TEXT_COLOR,
@@ -731,7 +755,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
         self.appearance_menu = create_appearance_menu(self.sidebar)
         self.appearance_menu.configure(width=212)
         self.appearance_menu.pack(side="bottom", padx=14)
-        customtkinter.CTkLabel(master=self.sidebar, text="APPEARANCE", font=font(10, "bold"), text_color=MUTED_TEXT_COLOR, anchor="w").pack(side="bottom", fill="x", padx=24, pady=(0, 4))
+        customtkinter.CTkLabel(master=self.sidebar, text="APPEARANCE", font=mono(10), text_color=MUTED_TEXT_COLOR, anchor="w").pack(side="bottom", fill="x", padx=24, pady=(0, 4))
 
     def get_full_name(self):
         # "First Last", or the username if there is no name
@@ -750,7 +774,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
 
         # Pages scroll when they are taller than the window
         self.page = customtkinter.CTkScrollableFrame(master=self.page_area, fg_color="transparent", corner_radius=0,
-                                                     scrollbar_button_color=BORDER_COLOR, scrollbar_button_hover_color=MUTED_TEXT_COLOR)
+                                                     scrollbar_button_color=SCROLLBAR_COLOR, scrollbar_button_hover_color=MUTED_TEXT_COLOR)
         self.page.pack(fill="both", expand=True)
         if page == "profile":
             self.setup_profile_page()
@@ -760,10 +784,15 @@ class LoggedInFrame(customtkinter.CTkFrame):
             self.after(10, lambda: self.page._parent_canvas.yview_moveto(scroll_position))
 
     def create_page_header(self, title, subtitle=""):
+        create_section_label(self.page, f"{self.current_page_number()} / {title}", MUTED_TEXT_COLOR).pack(fill="x")
         customtkinter.CTkLabel(master=self.page, text=title, font=font(24, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x", padx=(0, 12))
         if subtitle:
             customtkinter.CTkLabel(master=self.page, text=subtitle, font=font(13), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x")
         customtkinter.CTkFrame(master=self.page, height=14, fg_color="transparent").pack()  # Space under the header
+
+    def current_page_number(self):
+        # "01", "02"... shown above the page title
+        return f"{list(self.nav_buttons).index(self.current_page) + 1:02d}"
 
     def setup_profile_page(self):
         self.user = get_user_data(self.username) or self.user
@@ -783,13 +812,13 @@ class LoggedInFrame(customtkinter.CTkFrame):
 
     def setup_profile_banner(self):
         # Colored hero card with the avatar, name and a few "chips"
-        banner = create_glass_frame(self.page, radius=22, fg_color=BANNER_COLOR, border_color=BANNER_BORDER_COLOR)
-        banner.pack(fill="x", padx=(0, 12))
+        banner_panel, banner = create_panel(self.page, fg_color=BANNER_COLOR, border_color=BANNER_BORDER_COLOR)
+        banner_panel.pack(fill="x", padx=(0, 12))
         banner.grid_columnconfigure(1, weight=1)
 
-        customtkinter.CTkLabel(master=banner, text=get_initials(self.user, self.username), width=84, height=84, corner_radius=26,
+        customtkinter.CTkLabel(master=banner, text=get_initials(self.user, self.username), width=84, height=84, corner_radius=WIDGET_RADIUS,
                                fg_color=BANNER_CHIP_COLOR, text_color=BANNER_TEXT_COLOR,
-                               font=font(30, "bold")).grid(row=0, column=0, rowspan=3, padx=(26, 18), pady=24)
+                               font=mono(30)).grid(row=0, column=0, rowspan=3, padx=(26, 18), pady=24)
         customtkinter.CTkLabel(master=banner, text=self.get_full_name(), font=font(24, "bold"), text_color=BANNER_TEXT_COLOR,
                                anchor="w").grid(row=0, column=1, sticky="sw", pady=(24, 0))
         bio = (self.user.get("bio") or "").strip() or "No bio yet. Tell people a little about yourself below."
@@ -801,12 +830,12 @@ class LoggedInFrame(customtkinter.CTkFrame):
         chips.grid(row=2, column=1, sticky="nw", pady=(8, 24))
         provider = self.user.get("oauth_provider")
         chip_texts = [f"@{self.username}", self.user.get("country") or "", get_provider_name(provider) if provider else "",
-                      f"Joined {format_date(self.user.get('created_at'))}"]
+                      f"JOINED {format_date(self.user.get('created_at')).upper()}"]
         for text in chip_texts:
             if text:
                 create_chip(chips, text, fg_color=BANNER_CHIP_COLOR, text_color=BANNER_TEXT_COLOR).pack(side="left", padx=(0, 6))
 
-        self.export_button = create_button(banner, "Export data", self.handle_export_data, style="glass", width=120, height=36)
+        self.export_button = create_button(banner, "Export data", self.handle_export_data, style="banner", width=120, height=36)
         self.export_button.grid(row=0, column=2, sticky="ne", padx=24, pady=24)
 
     def setup_stats_row(self):
@@ -824,7 +853,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
                  ("Security", score_label, f"Score {score} / 100", score_color))
         for index, (title, value, caption, color) in enumerate(tiles):
             stats.grid_columnconfigure(index, weight=1, uniform="tile")
-            create_stat_tile(stats, title, value, caption, color).grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 12, 0))
+            create_stat_tile(stats, title, value, caption, color).grid(row=0, column=index, sticky="nsew", padx=(0 if index == 0 else 10, 0))
 
     def setup_about_card(self, master):
         # Short bio with a live character counter
@@ -837,7 +866,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
 
         footer = customtkinter.CTkFrame(master=body, fg_color="transparent")
         footer.pack(fill="x", pady=(10, 0))
-        self.bio_counter = customtkinter.CTkLabel(master=footer, text="", font=font(11), text_color=MUTED_TEXT_COLOR)
+        self.bio_counter = customtkinter.CTkLabel(master=footer, text="", font=mono(11, "normal"), text_color=MUTED_TEXT_COLOR)
         self.bio_counter.pack(side="left")
         create_button(footer, "Save bio", self.save_bio, width=110, height=36).pack(side="right")
         self.bio_status = create_status_label(body)
@@ -849,7 +878,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
         # Progress bar and checklist of what is still missing
         completion, items = profile_completion(self.user)
         card, body = create_card(master, "Profile strength", f"{completion}% complete")
-        bar = customtkinter.CTkProgressBar(master=body, height=8, corner_radius=4, fg_color=BORDER_COLOR,
+        bar = customtkinter.CTkProgressBar(master=body, height=10, corner_radius=0, fg_color=SCROLLBAR_COLOR,
                                            progress_color=SUCCESS_COLOR if completion == 100 else ACCENT_COLOR)
         bar.set(completion / 100)
         bar.pack(fill="x", pady=(0, 10))
@@ -857,7 +886,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
         checklist.pack(fill="x")
         checklist.grid_columnconfigure((0, 1), weight=1, uniform="check")
         for index, (label, done) in enumerate(items):
-            customtkinter.CTkLabel(master=checklist, text=f"{'✓' if done else '○'}  {label}", font=font(12, "bold" if done else "normal"),
+            customtkinter.CTkLabel(master=checklist, text=f"{'■' if done else '□'}  {label}", font=font(12, "bold" if done else "normal"),
                                    text_color=SUCCESS_COLOR if done else MUTED_TEXT_COLOR,
                                    anchor="w").grid(row=index // 2, column=index % 2, sticky="w", pady=2)
         return card
@@ -876,7 +905,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
         details.grid_columnconfigure((0, 1, 2), weight=1, uniform="detail")
         for index, (label, value) in enumerate(rows):
             column = index % 3
-            customtkinter.CTkLabel(master=details, text=label, font=font(11), text_color=MUTED_TEXT_COLOR, anchor="w").grid(row=(index // 3) * 2, column=column, sticky="w")
+            customtkinter.CTkLabel(master=details, text=label.upper(), font=mono(10), text_color=MUTED_TEXT_COLOR, anchor="w").grid(row=(index // 3) * 2, column=column, sticky="w")
             customtkinter.CTkLabel(master=details, text=value, font=font(13, "bold"), text_color=TEXT_COLOR, anchor="w").grid(row=(index // 3) * 2 + 1, column=column, sticky="w", pady=(0, 10))
 
     def setup_personal_card(self):

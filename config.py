@@ -95,14 +95,17 @@ app_name = get_env("APP_NAME", "Title Placement")
 # ---------------------------------------------------------------- Appearance
 appearance_mode = get_env("APPEARANCE_MODE", "System")  # System, Light or Dark
 color_theme = get_env("COLOR_THEME", "blue")  # blue, green, dark-blue or a path to a theme .json
-accent_color = get_env("ACCENT_COLOR", "#6366F1")
-accent_hover_color = get_env("ACCENT_HOVER_COLOR", "#4F46E5")
+accent_color = get_env("ACCENT_COLOR", "#FF5A36")
+accent_hover_color = get_env("ACCENT_HOVER_COLOR", "#E6461F")
 danger_color = get_env("DANGER_COLOR", "#EF4444")
 danger_hover_color = get_env("DANGER_HOVER_COLOR", "#DC2626")
 success_color = get_env("SUCCESS_COLOR", "#22C55E")
 # Default font for each system, Segoe UI only exists on Windows
 DEFAULT_FONTS = {"win32": "Segoe UI", "darwin": "Helvetica Neue"}
 font_family = get_env("FONT_FAMILY", DEFAULT_FONTS.get(sys.platform, "DejaVu Sans"))
+# Monospace font for small labels and numbers
+DEFAULT_MONO_FONTS = {"win32": "Consolas", "darwin": "Menlo"}
+mono_font_family = get_env("MONO_FONT_FAMILY", DEFAULT_MONO_FONTS.get(sys.platform, "DejaVu Sans Mono"))
 ui_scaling = get_env_float("UI_SCALING", 1.0)
 
 # ---------------------------------------------------------------- Windows

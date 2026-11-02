@@ -36,7 +36,7 @@ This includes a sqlite3 database setup with many functions including saving the 
 
 <p>
   <img src="images/screenshots/login-dark.png" width="49%" alt="Login">
-  <img src="images/screenshots/register-dark.png" width="49%" alt="Register">
+  <img src="images/screenshots/register-light.png" width="49%" alt="Register">
 </p>
 
 ![Security page](images/screenshots/security-light.png)
@@ -67,7 +67,7 @@ Optional, only for other databases:
 - Profile page with a hero banner, stat tiles (member for, logins, profile complete, security score), an "About me" bio, a profile strength checklist, account details and editable name and country.
 - Export your profile as a JSON file.
 - Security page: change or set password, delete account.
-- Light and dark mode with a frosted glass look and rounded cards.
+- Light and dark mode with a block style: near-square panels with solid offset shadows, monospace labels and a coral accent.
 - Settings in `config.py` or `.env`.
 - SQLite by default, PostgreSQL or MySQL with one setting.
 - Builds for Windows (`.exe`), macOS (`.app`) and Linux, tested and built by GitHub Actions.
@@ -250,9 +250,10 @@ Only add the values you want to change to `.env`. See `.env.example` for the ful
 | `APP_NAME` | `Title Placement` | Name shown in the window title, above the forms and in the sidebar |
 | `APPEARANCE_MODE` | `System` | `System`, `Light` or `Dark` |
 | `COLOR_THEME` | `blue` | customtkinter theme: `blue`, `green`, `dark-blue` or a `.json` path |
-| `ACCENT_COLOR` / `ACCENT_HOVER_COLOR` | `#6366F1` / `#4F46E5` | Buttons, links and highlights |
+| `ACCENT_COLOR` / `ACCENT_HOVER_COLOR` | `#FF5A36` / `#E6461F` | Buttons, links and highlights |
 | `DANGER_COLOR` / `SUCCESS_COLOR` | `#EF4444` / `#22C55E` | Error and success colors |
 | `FONT_FAMILY` | `Segoe UI` (Windows), `Helvetica Neue` (macOS), `DejaVu Sans` (Linux) | Font used everywhere |
+| `MONO_FONT_FAMILY` | `Consolas` (Windows), `Menlo` (macOS), `DejaVu Sans Mono` (Linux) | Labels and numbers |
 | `UI_SCALING` | `1.0` | Scale all widgets |
 | `AUTH_WINDOW_SIZE` | `560x720` | Login screens window size |
 | `DASHBOARD_WINDOW_SIZE` | `1140x720` | Dashboard window size |
@@ -506,6 +507,10 @@ The following functions in `frames.py` and `app.py` are used for UI-related task
 
 ### `create_entry()`, `create_button()`, `create_combobox()`, `create_link()`, `create_card()`
 - Create widgets with the same style on every screen. Buttons have `primary`, `secondary`, `danger` and `ghost` styles.
+
+### `create_panel(master)`, `create_section_label()`, `create_chip()`, `create_stat_tile()`
+- `create_panel` returns `(outer, inner)`: a bordered panel with a solid shadow offset to the bottom right. Place `outer`, put content in `inner`.
+- `create_section_label` makes the small `■ LABEL` headings, `create_chip` the square tags and `create_stat_tile` the number tiles on the profile.
 
 ### `create_title(master, title, subtitle)`
 - Adds a large title with a muted subtitle.
