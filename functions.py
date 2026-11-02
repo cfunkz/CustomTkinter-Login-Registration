@@ -5,9 +5,18 @@ import secrets
 import string
 import time
 import re
+import os
+import sys
 import json
-from datetime import datetime
+import uuid
+import socket
+import shutil
+import getpass
+import platform
+from datetime import datetime, timedelta
+from urllib.request import Request, urlopen
 from functools import lru_cache
+import psutil
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import config
@@ -147,10 +156,8 @@ def check_login(username, password):
                 return "invalid", None
 
             # Successful login: reset the counter and save the login time
-            cursor.execute('''
-                UPDATE Users SET failed_attempts = 0, locked_until = 0, last_login = ?, login_count = COALESCE(login_count, 0) + 1
-                WHERE username = ?
-            ''', (now(), db_username))
+            cursor.execute("UPDATE Users SET failed_attempts = 0, locked_until = 0, last_login = ? WHERE username = ?",
+                           (now(), db_username))
 
             # Upgrade a legacy plain-text password to a hash
             if not is_hashed(stored_password):
@@ -262,7 +269,7 @@ def get_user_data(username):
     with database() as cursor:
         cursor.execute('''
             SELECT first_name, last_name, country, username, email, security_question, created_at, last_login,
-                   oauth_provider, password_set, bio, login_count
+                   oauth_provider, password_set, webhook_url
             FROM Users WHERE LOWER(username) = LOWER(?)
         ''', (username,))
         result = cursor.fetchone()
@@ -277,21 +284,6 @@ def update_user_profile(username, first_name, last_name, country):
         cursor.execute("UPDATE Users SET first_name = ?, last_name = ?, country = ? WHERE LOWER(username) = LOWER(?)",
                        (first_name.strip(), last_name.strip(), country, username))
         return cursor.rowcount > 0
-
-def update_bio(username, bio):
-    # Save the short "About me" text
-    with database() as cursor:
-        cursor.execute("UPDATE Users SET bio = ? WHERE LOWER(username) = LOWER(?)", (bio.strip()[:config.bio_max_length], username))
-        return cursor.rowcount > 0
-
-def export_user_data(username, path):
-    # Save the user's profile as a JSON file (no password or security answer)
-    user = get_user_data(username)
-    if not user:
-        return False
-    with open(path, "w", encoding="utf-8") as export_file:
-        json.dump(user, export_file, indent=2, default=str)
-    return True
 
 def delete_user(username, confirmation):
     # Delete an account after confirming the password (or the username for social login accounts without a password)
@@ -332,10 +324,7 @@ def oauth_login_user(profile):
         cursor.execute("SELECT username FROM Users WHERE oauth_provider = ? AND oauth_id = ?", (provider, oauth_id))
         result = cursor.fetchone()
         if result:
-            cursor.execute('''
-                UPDATE Users SET last_login = ?, failed_attempts = 0, locked_until = 0, login_count = COALESCE(login_count, 0) + 1
-                WHERE username = ?
-            ''', (now(), result[0]))
+            cursor.execute("UPDATE Users SET last_login = ?, failed_attempts = 0, locked_until = 0 WHERE username = ?", (now(), result[0]))
             return "ok", result[0]
 
         # 2. An account with the same verified email exists, link the provider to it
@@ -344,8 +333,7 @@ def oauth_login_user(profile):
         if result:
             if result[1] is None and profile.get("email_verified") and config.oauth_link_by_email:
                 cursor.execute('''
-                    UPDATE Users SET oauth_provider = ?, oauth_id = ?, last_login = ?, failed_attempts = 0, locked_until = 0,
-                                     login_count = COALESCE(login_count, 0) + 1
+                    UPDATE Users SET oauth_provider = ?, oauth_id = ?, last_login = ?, failed_attempts = 0, locked_until = 0
                     WHERE username = ?
                 ''', (provider, oauth_id, now(), result[0]))
                 return "linked", result[0]
@@ -357,8 +345,8 @@ def oauth_login_user(profile):
     with database() as cursor:
         cursor.execute('''
             INSERT INTO Users (first_name, last_name, country, username, email, password, created_at, last_login,
-                               oauth_provider, oauth_id, password_set, login_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)
+                               oauth_provider, oauth_id, password_set)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
         ''', ((profile.get("first_name") or username).strip(), (profile.get("last_name") or "").strip(), "", username, email,
               hash_password(secrets.token_urlsafe(32)), now(), now(), provider, oauth_id))
     return "created", username
@@ -439,84 +427,128 @@ def password_strength(password):
         score += 1
     return score
 
-# ---------------------------------------------------------------- Profile helpers
+# ---------------------------------------------------------------- Device info
 
-def parse_date(date_text):
-    # Turn "2024-01-31 12:00:00" back into a datetime, None if it is empty or invalid
+def get_local_ip():
+    # IP address of this computer on the local network (nothing is sent, connect only picks the network card)
     try:
-        return datetime.strptime(str(date_text), "%Y-%m-%d %H:%M:%S")
-    except (TypeError, ValueError):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+
+def get_public_ip():
+    # IP address the internet sees, slow so call it in the background
+    with urlopen("https://api.ipify.org", timeout=5) as response:
+        return response.read().decode().strip()
+
+def get_mac_address():
+    # MAC address of the network card, "Unknown" if Python had to make up a random one
+    node = uuid.getnode()
+    if (node >> 40) & 1:
+        return "Unknown"
+    return ":".join(f"{(node >> shift) & 0xFF:02X}" for shift in range(40, -1, -8))
+
+def get_os_name():
+    # "Windows 11", "macOS 14.5" or "Linux 6.8.0"
+    if sys.platform == "darwin":
+        return f"macOS {platform.mac_ver()[0]}"
+    return f"{platform.system()} {platform.release()}"
+
+def format_size(size):
+    # Bytes to "15.8 GB"
+    return f"{size / 1024 ** 3:.1f} GB"
+
+def format_duration(seconds):
+    # Seconds to "2d 3h 15m", "3h 15m" or "5m 42s"
+    seconds = int(seconds)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    if days:
+        return f"{days}d {hours}h {minutes}m"
+    if hours:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m {seconds}s"
+
+def get_system_info():
+    # Information about the computer the app is running on
+    memory = psutil.virtual_memory()
+    disk = shutil.disk_usage(os.path.expanduser("~"))
+    return {
+        "Computer name": platform.node() or socket.gethostname(),
+        "Operating system": get_os_name(),
+        "Architecture": platform.machine(),
+        "CPU cores": f"{psutil.cpu_count(logical=False) or '?'} cores / {psutil.cpu_count()} threads",
+        "Memory": f"{format_size(memory.total - memory.available)} of {format_size(memory.total)} used",
+        "Disk": f"{format_size(disk.free)} free of {format_size(disk.total)}",
+        "Uptime": format_duration(time.time() - psutil.boot_time()),
+        "OS user": getpass.getuser(),
+        "Python": platform.python_version(),
+        "Local IP": get_local_ip(),
+        "MAC address": get_mac_address(),
+    }
+
+# ---------------------------------------------------------------- Todo list
+
+def parse_due_time(text):
+    # "18:30" (today, or tomorrow if it has passed) or "2024-01-31 18:30" to a database date, "" for no time, None if invalid
+    text = text.strip()
+    if not text:
+        return ""
+    try:
+        if len(text) <= 5:
+            hour, minute = (int(part) for part in text.split(":"))
+            due = datetime.now().replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if due <= datetime.now():
+                due += timedelta(days=1)
+        else:
+            due = datetime.strptime(text, "%Y-%m-%d %H:%M")
+    except ValueError:
         return None
+    return due.strftime("%Y-%m-%d %H:%M:%S")
 
-def days_since(date_text):
-    # Whole days between a saved date and now
-    date = parse_date(date_text)
-    return max(0, (datetime.now() - date).days) if date else 0
+def add_todo(username, text, due_at=""):
+    # Save a new task
+    with database() as cursor:
+        cursor.execute("INSERT INTO Todos (id, username, text, due_at, done, notified, created_at) VALUES (?, ?, ?, ?, 0, 0, ?)",
+                       (secrets.token_hex(16), username, text.strip(), due_at or None, now()))
+    return True
 
-def time_ago(date_text):
-    # "just now", "5 min ago", "3 hours ago", "2 days ago" or the date for anything older than a month
-    date = parse_date(date_text)
-    if not date:
-        return "Never"
-    seconds = max(0, int((datetime.now() - date).total_seconds()))
-    if seconds < 60:
-        return "Just now"
-    if seconds < 3600:
-        return f"{seconds // 60} min ago"
-    if seconds < 86400:
-        hours = seconds // 3600
-        return f"{hours} hour{'s' if hours > 1 else ''} ago"
-    days = seconds // 86400
-    if days < 30:
-        return f"{days} day{'s' if days > 1 else ''} ago"
-    return date.strftime("%d %b %Y")
+def get_todos(username):
+    # All tasks of a user, open ones first
+    with database() as cursor:
+        cursor.execute("SELECT id, text, due_at, done FROM Todos WHERE username = ? ORDER BY done, created_at", (username,))
+        return [{"id": row[0], "text": row[1], "due_at": row[2], "done": bool(row[3])} for row in cursor.fetchall()]
 
-def format_date(date_text):
-    # "2024-01-31 12:00:00" to "31 Jan 2024"
-    date = parse_date(date_text)
-    return date.strftime("%d %b %Y") if date else "Unknown"
+def set_todo_done(todo_id, done):
+    with database() as cursor:
+        cursor.execute("UPDATE Todos SET done = ? WHERE id = ?", (int(done), todo_id))
 
-def get_greeting(hour=None):
-    # Greeting for the time of day
-    hour = datetime.now().hour if hour is None else hour
-    if hour < 12:
-        return "Good morning"
-    if hour < 18:
-        return "Good afternoon"
-    return "Good evening"
+def delete_todo(todo_id):
+    with database() as cursor:
+        cursor.execute("DELETE FROM Todos WHERE id = ?", (todo_id,))
 
-def get_initials(user, username=""):
-    # "John Smith" to "JS", falls back to the username
-    first_name = (user.get("first_name") or username or "?").strip()
-    last_name = (user.get("last_name") or "").strip()
-    return (first_name[:1] + last_name[:1]).upper()
+def get_due_todos(username):
+    # Open tasks whose time has come and that haven't alarmed yet (dates are saved as text that sorts by time)
+    with database() as cursor:
+        cursor.execute("SELECT id, text, due_at FROM Todos WHERE username = ? AND done = 0 AND notified = 0 AND due_at <= ?",
+                       (username, now()))
+        return [{"id": row[0], "text": row[1], "due_at": row[2]} for row in cursor.fetchall()]
 
-def profile_completion(user):
-    # Checklist of profile items and how many percent are done
-    items = [
-        ("First and last name", bool(user.get("first_name") and user.get("last_name"))),
-        ("Country", validate_country(user.get("country") or "")),
-        ("Email address", bool(user.get("email"))),
-        ("About me", bool((user.get("bio") or "").strip())),
-        ("Password", bool(user.get("password_set", 1))),
-        ("Security question", bool(user.get("security_question"))),
-    ]
-    percent = round(100 * sum(done for label, done in items) / len(items))
-    return percent, items
+def mark_todo_notified(todo_id):
+    with database() as cursor:
+        cursor.execute("UPDATE Todos SET notified = 1 WHERE id = ?", (todo_id,))
 
-def security_score(user):
-    # Simple account security score from 0 to 100 and a label
-    score = 0
-    if user.get("password_set", 1):
-        score += 40
-    if user.get("security_question"):
-        score += 30
-    if user.get("email"):
-        score += 15
-    if user.get("oauth_provider"):
-        score += 15
-    if score >= 80:
-        return score, "Strong"
-    if score >= 50:
-        return score, "Good"
-    return score, "Weak"
+def update_webhook_url(username, url):
+    # Save the webhook that todo alarms are sent to
+    with database() as cursor:
+        cursor.execute("UPDATE Users SET webhook_url = ? WHERE LOWER(username) = LOWER(?)", (url.strip() or None, username))
+
+def send_webhook(url, message):
+    # POST a message to a webhook. "content" is for Discord, "text" for Slack and most others
+    data = json.dumps({"content": message, "text": message}).encode()
+    request = Request(url, data=data, headers={"Content-Type": "application/json", "User-Agent": "TitlePlacement"})
+    with urlopen(request, timeout=10) as response:
+        return 200 <= response.status < 300

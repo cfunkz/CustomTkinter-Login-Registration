@@ -1,6 +1,7 @@
 customtkinter>=5.2
 pycountry
 Pillow
+psutil
 
 # Optional database drivers, only needed when DATABASE_TYPE is not sqlite
 # psycopg2-binary  # PostgreSQL

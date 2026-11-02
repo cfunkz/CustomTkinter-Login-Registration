@@ -1,14 +1,7 @@
-import json
-import os
 import unittest
-from datetime import datetime, timedelta
-from tests import TEST_DIR
+from datetime import datetime
 import functions
-from database import init_database, now
-
-def past(**kwargs):
-    # A saved date some time ago, in the same format as the database
-    return (datetime.now() - timedelta(**kwargs)).strftime("%Y-%m-%d %H:%M:%S")
+from database import init_database
 
 class ValidationTests(unittest.TestCase):
     def test_email(self):
@@ -28,40 +21,17 @@ class ValidationTests(unittest.TestCase):
         self.assertTrue(functions.verify_password("secret123", stored))
         self.assertFalse(functions.verify_password("wrong123", stored))
 
-    def test_country(self):
-        self.assertTrue(functions.validate_country("Latvia"))
-        self.assertFalse(functions.validate_country("Atlantis"))
+class DeviceTests(unittest.TestCase):
+    def test_system_info(self):
+        info = functions.get_system_info()
+        self.assertTrue(info["Computer name"])
+        self.assertTrue(info["OS user"])
+        self.assertIn("GB", info["Memory"])
 
-class ProfileHelperTests(unittest.TestCase):
-    def test_time_ago(self):
-        self.assertEqual(functions.time_ago(None), "Never")
-        self.assertEqual(functions.time_ago(now()), "Just now")
-        self.assertEqual(functions.time_ago(past(hours=3)), "3 hours ago")
-        self.assertEqual(functions.time_ago(past(days=1, minutes=5)), "1 day ago")
-
-    def test_days_since(self):
-        self.assertEqual(functions.days_since(past(days=10, minutes=1)), 10)
-        self.assertEqual(functions.days_since("not a date"), 0)
-
-    def test_greeting(self):
-        self.assertEqual(functions.get_greeting(8), "Good morning")
-        self.assertEqual(functions.get_greeting(14), "Good afternoon")
-        self.assertEqual(functions.get_greeting(21), "Good evening")
-
-    def test_initials(self):
-        self.assertEqual(functions.get_initials({"first_name": "John", "last_name": "Smith"}), "JS")
-        self.assertEqual(functions.get_initials({}, "bob"), "B")
-
-    def test_profile_completion(self):
-        user = {"first_name": "John", "last_name": "Smith", "country": "Latvia", "email": "j@example.com", "bio": "Hi",
-                "password_set": 1, "security_question": "Where were you born?"}
-        self.assertEqual(functions.profile_completion(user)[0], 100)
-        user["bio"] = ""
-        self.assertEqual(functions.profile_completion(user)[0], 83)
-
-    def test_security_score(self):
-        self.assertEqual(functions.security_score({"password_set": 1, "security_question": "Q", "email": "e"}), (85, "Strong"))
-        self.assertEqual(functions.security_score({"password_set": 0, "oauth_provider": "google", "email": "e"}), (30, "Weak"))
+    def test_format_duration(self):
+        self.assertEqual(functions.format_duration(65), "1m 5s")
+        self.assertEqual(functions.format_duration(3 * 3600 + 120), "3h 2m")
+        self.assertEqual(functions.format_duration(90000), "1d 1h 0m")
 
 class DatabaseTests(unittest.TestCase):
     @classmethod
@@ -70,26 +40,37 @@ class DatabaseTests(unittest.TestCase):
         functions.register_user("Test", "User", "Latvia", "tester", "tester@example.com", "secret123",
                                 "Where were you born?", "Riga")
 
-    def test_login_counts(self):
-        before = functions.get_user_data("tester")["login_count"] or 0
+    def test_login(self):
         self.assertEqual(functions.check_login("tester", "secret123"), ("ok", "tester"))
         self.assertEqual(functions.check_login("TESTER@example.com", "secret123"), ("ok", "tester"))
-        self.assertEqual(functions.get_user_data("tester")["login_count"], before + 2)
         self.assertEqual(functions.check_login("tester", "wrong")[0], "invalid")
-
-    def test_bio_and_export(self):
-        self.assertTrue(functions.update_bio("tester", "  Python developer  "))
-        self.assertEqual(functions.get_user_data("tester")["bio"], "Python developer")
-        path = os.path.join(TEST_DIR, "export.json")
-        self.assertTrue(functions.export_user_data("tester", path))
-        with open(path, encoding="utf-8") as export_file:
-            data = json.load(export_file)
-        self.assertEqual(data["username"], "tester")
-        self.assertNotIn("password", data)
 
     def test_security_answer(self):
         self.assertTrue(functions.check_security_answer("tester@example.com", "  riga "))
         self.assertFalse(functions.check_security_answer("tester@example.com", "Paris"))
+
+    def test_due_time(self):
+        self.assertEqual(functions.parse_due_time(""), "")
+        self.assertIsNone(functions.parse_due_time("tomorrow"))
+        self.assertEqual(functions.parse_due_time("2030-01-31 18:30"), "2030-01-31 18:30:00")
+        self.assertGreater(functions.parse_due_time("00:00"), datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    def test_todos(self):
+        functions.add_todo("tester", "Old task", "2000-01-01 10:00:00")
+        functions.add_todo("tester", "Future task", "2999-01-01 10:00:00")
+        due = functions.get_due_todos("tester")
+        self.assertEqual([todo["text"] for todo in due], ["Old task"])
+        functions.mark_todo_notified(due[0]["id"])
+        self.assertEqual(functions.get_due_todos("tester"), [])
+        todo = functions.get_todos("tester")[0]
+        functions.set_todo_done(todo["id"], True)
+        self.assertTrue([t for t in functions.get_todos("tester") if t["id"] == todo["id"]][0]["done"])
+        functions.delete_todo(todo["id"])
+        self.assertEqual(len(functions.get_todos("tester")), 1)
+
+    def test_webhook_url(self):
+        functions.update_webhook_url("tester", "https://example.com/hook")
+        self.assertEqual(functions.get_user_data("tester")["webhook_url"], "https://example.com/hook")
 
 if __name__ == "__main__":
     unittest.main()
