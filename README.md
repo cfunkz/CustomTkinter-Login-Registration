@@ -1,4 +1,4 @@
-![Commits](https://img.shields.io/github/commit-activity/t/cfunkz/CustomTkinter-Login-Registration) ![Stars](https://img.shields.io/github/stars/cfunkz/CustomTkinter-Login-Registration?style=social)
+![Build](https://github.com/cfunkz/CustomTkinter-Login-Registration/actions/workflows/build.yml/badge.svg) ![Commits](https://img.shields.io/github/commit-activity/t/cfunkz/CustomTkinter-Login-Registration) ![Stars](https://img.shields.io/github/stars/cfunkz/CustomTkinter-Login-Registration?style=social)
 
 
 # CustomTkinter-Login-Registration
@@ -16,7 +16,8 @@ This includes a sqlite3 database setup with many functions including saving the 
 - [Database Security](#database-security)
 - [Project Structure](#project-structure)
 - [Installation](#installation)
-- [Windows Release (.exe)](#windows-release-exe)
+- [Release Builds (Windows, macOS, Linux)](#release-builds-windows-macos-linux)
+- [Tests](#tests)
 - [Database Location](#database-location)
 - [PostgreSQL and MySQL](#postgresql-and-mysql)
 - [Configuration](#configuration)
@@ -30,9 +31,15 @@ This includes a sqlite3 database setup with many functions including saving the 
 
 ## Screenshots
 
-![Screenshot 1](images/screenshots/image.png)
-![Screenshot 2](images/screenshots/image2.png)
-![Screenshot 3](images/screenshots/image3.png)
+![Profile, dark mode](images/screenshots/profile-dark.png)
+![Profile, light mode](images/screenshots/profile-light.png)
+
+<p>
+  <img src="images/screenshots/login-dark.png" width="49%" alt="Login">
+  <img src="images/screenshots/register-dark.png" width="49%" alt="Register">
+</p>
+
+![Security page](images/screenshots/security-light.png)
 
 ## Prerequisites
 
@@ -57,12 +64,13 @@ Optional, only for other databases:
 - Registration with password confirmation and password strength bar.
 - Forgot password: email, security question, temporary password sent by email.
 - New password required after logging in with a temporary password.
-- Profile page: account details, edit name and country.
+- Profile page with a hero banner, stat tiles (member for, logins, profile complete, security score), an "About me" bio, a profile strength checklist, account details and editable name and country.
+- Export your profile as a JSON file.
 - Security page: change or set password, delete account.
-- Light and dark mode.
+- Light and dark mode with a frosted glass look and rounded cards.
 - Settings in `config.py` or `.env`.
 - SQLite by default, PostgreSQL or MySQL with one setting.
-- One-file Windows `.exe` build.
+- Builds for Windows (`.exe`), macOS (`.app`) and Linux, tested and built by GitHub Actions.
 - Older databases are upgraded automatically.
 
 ## Security
@@ -116,8 +124,10 @@ oauth.py          # Google, Facebook and Discord sign-in (OAuth 2.0)
 config.py         # Every setting, reads .env for values you change
 .env.example      # Template for your .env file
 requirements.txt  # Python packages
-build.py          # Builds the one-file .exe with PyInstaller
+build.py          # Builds the app with PyInstaller (.exe, .app or Linux binary)
 build.bat         # Windows: double-click to build the .exe
+tests/            # Unit tests and a UI test that opens every screen
+.github/workflows # GitHub Actions: test and build on Windows, macOS and Linux
 images/           # Login button logos and screenshots
 ```
 
@@ -150,17 +160,39 @@ To install CustomTkinter-Login-Registration, follow these steps:
    python main.py
    ```
 
-## Windows Release (.exe)
+## Release Builds (Windows, macOS, Linux)
 
-The app can be built into one `TitlePlacement.exe` file that runs without Python installed.
+The app can be built into a single app that runs without Python installed.
 
-1. On Windows, install Python 3.9+ from [python.org](https://www.python.org/downloads/).
-2. Double-click `build.bat` (or run `python build.py`).
-3. The release is `dist\TitlePlacement.exe`.
+| System | Command | Result |
+| --- | --- | --- |
+| Windows | Double-click `build.bat` or run `python build.py` | `dist\TitlePlacement.exe` |
+| macOS | `python3 build.py` | `dist/TitlePlacement.app` |
+| Linux | `python3 build.py` | `dist/TitlePlacement` |
 
-`build.py` uses PyInstaller and bundles the images, customtkinter themes, country list and the PostgreSQL / MySQL driver if it is installed. Add `images\icon.ico` to give the `.exe` an icon. PyInstaller builds for the system it runs on, so build the Windows `.exe` on Windows.
+Install the packages first with `pip install -r requirements.txt pyinstaller`. `build.py` uses PyInstaller and bundles the images, customtkinter themes, country list and the PostgreSQL / MySQL driver if it is installed. Add `images/icon.ico` to give the app an icon. PyInstaller builds for the system it runs on, so each system is built on its own.
 
-To configure the `.exe`, put a `.env` file next to it or in the data folder below.
+GitHub Actions does this for you: [`.github/workflows/build.yml`](.github/workflows/build.yml) runs the tests and builds all three on every push and pull request. Download them from the run's **Artifacts**. Push a version tag to publish a release with all three files attached:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Notes:
+
+- macOS: the app is not signed, so the first time right-click it and choose **Open**.
+- Linux: the binary needs Tk, which most desktops have. If not, install it with `sudo apt install libtk8.6` (or your distro's `tk` package). Run `chmod +x TitlePlacement` after downloading.
+
+To configure the app, put a `.env` file next to it or in the data folder below.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -t . -v
+```
+
+The tests use a temporary database. `tests/test_ui.py` opens the real window and goes through every screen, it is skipped when there is no display. On a Linux server run it with `xvfb-run -a python -m unittest discover -s tests -t . -v`.
 
 ## Database Location
 
@@ -218,13 +250,14 @@ Only add the values you want to change to `.env`. See `.env.example` for the ful
 | `APP_NAME` | `Title Placement` | Name shown in the window title, above the forms and in the sidebar |
 | `APPEARANCE_MODE` | `System` | `System`, `Light` or `Dark` |
 | `COLOR_THEME` | `blue` | customtkinter theme: `blue`, `green`, `dark-blue` or a `.json` path |
-| `ACCENT_COLOR` / `ACCENT_HOVER_COLOR` | `#3B82F6` / `#2563EB` | Buttons, links and highlights |
+| `ACCENT_COLOR` / `ACCENT_HOVER_COLOR` | `#6366F1` / `#4F46E5` | Buttons, links and highlights |
 | `DANGER_COLOR` / `SUCCESS_COLOR` | `#EF4444` / `#22C55E` | Error and success colors |
-| `FONT_FAMILY` | `Segoe UI` | Font used everywhere |
+| `FONT_FAMILY` | `Segoe UI` (Windows), `Helvetica Neue` (macOS), `DejaVu Sans` (Linux) | Font used everywhere |
 | `UI_SCALING` | `1.0` | Scale all widgets |
-| `AUTH_WINDOW_SIZE` | `520x640` | Login screens window size |
-| `DASHBOARD_WINDOW_SIZE` | `1100x680` | Dashboard window size |
+| `AUTH_WINDOW_SIZE` | `560x720` | Login screens window size |
+| `DASHBOARD_WINDOW_SIZE` | `1140x720` | Dashboard window size |
 | `WINDOW_RESIZABLE` | `false` | Allow resizing the window |
+| `BIO_MAX_LENGTH` | `160` | Longest "About me" text on the profile |
 | `DATA_FOLDER` | `TitlePlacement` | Name of the data folder for the database and `.env` |
 | `DATABASE_TYPE` | `sqlite` | `sqlite`, `postgres` or `mysql` |
 | `DATABASE_FILE` | data folder `user_database.db` | SQLite database file |
@@ -356,6 +389,20 @@ The following functions are used for managing user data. The connection function
 
 ### `update_user_profile(username, first_name, last_name, country)`
 - Updates the user's name and country. Returns `True` on success.
+
+### `update_bio(username, bio)`
+- Saves the "About me" text, cut to `BIO_MAX_LENGTH` characters.
+
+### `export_user_data(username, path)`
+- Saves the user's profile (no password or security answer) as a JSON file.
+
+### Profile helpers
+- `time_ago(date_text)`: "5 min ago", "3 hours ago", "2 days ago".
+- `days_since(date_text)` and `format_date(date_text)`: days since a saved date, and "31 Jan 2024".
+- `get_greeting(hour=None)`: "Good morning", "Good afternoon" or "Good evening".
+- `get_initials(user, username)`: initials for the avatar.
+- `profile_completion(user)`: percent complete and a checklist of what is missing.
+- `security_score(user)`: a score from 0 to 100 and "Strong", "Good" or "Weak".
 
 ### `delete_user(username, confirmation)`
 - Deletes an account after confirming the password (or the username for social sign-in accounts without a password).
@@ -499,7 +546,7 @@ The following functions in `frames.py` and `app.py` are used for UI-related task
 
 The database now lives in the data folder (see [Database Location](#database-location)). To keep your users, move your old `user_database.db` there, or set `DATABASE_FILE` to its path.
 
-Your existing `user_database.db` keeps working. On start the app adds the new columns, and each user's plain-text password and security answer are replaced with a hash the next time they log in or answer their question.
+Your existing `user_database.db` keeps working. On start the app adds the new columns (on PostgreSQL and MySQL too for `bio` and `login_count`), and each user's plain-text password and security answer are replaced with a hash the next time they log in or answer their question.
 
 ## Contributing
 

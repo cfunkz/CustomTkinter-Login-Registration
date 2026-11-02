@@ -2,18 +2,18 @@ import os
 import sys
 import PyInstaller.__main__
 
-# Builds one .exe file in the dist folder: python build.py
-# Run it on Windows to get a Windows .exe (PyInstaller can't build for another system).
+# Builds the app in the dist folder: python build.py
+# PyInstaller can't build for another system, so run it on each one (GitHub Actions does this for you):
+#   Windows: dist/TitlePlacement.exe    macOS: dist/TitlePlacement.app    Linux: dist/TitlePlacement
 
 APP_NAME = "TitlePlacement"
 
 def build():
-    # Images are bundled inside the .exe, customtkinter themes and pycountry data are collected with it
+    # Images are bundled inside the app, customtkinter themes and pycountry data are collected with it
     options = [
         "main.py",
         "--name", APP_NAME,
-        "--onefile",  # One single .exe file
-        "--windowed",  # No console window
+        "--windowed",  # No console window (an .app bundle on macOS)
         "--noconfirm",
         "--clean",
         "--add-data", f"images{os.pathsep}images",
@@ -21,6 +21,10 @@ def build():
         "--collect-data", "pycountry",
         "--hidden-import", "PIL._tkinter_finder",  # Needed by customtkinter images, PyInstaller misses it
     ]
+
+    # One single file on Windows and Linux, macOS uses a normal .app bundle instead
+    if sys.platform != "darwin":
+        options.append("--onefile")
 
     # Include the PostgreSQL / MySQL driver only if it is installed
     for module in ("psycopg2", "pymysql"):
@@ -35,7 +39,7 @@ def build():
         options += ["--icon", os.path.join("images", "icon.ico")]
 
     PyInstaller.__main__.run(options)
-    executable = APP_NAME + (".exe" if sys.platform == "win32" else "")
+    executable = APP_NAME + {"win32": ".exe", "darwin": ".app"}.get(sys.platform, "")
     print(f"\nDone: {os.path.join('dist', executable)}")
 
 if __name__ == "__main__":

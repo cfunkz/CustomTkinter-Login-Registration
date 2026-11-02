@@ -1,0 +1,97 @@
+name: Build
+
+# Tests and builds the app on Windows, macOS and Linux.
+# Every run uploads the builds as artifacts, pushing a tag like v1.0.0 also attaches them to a GitHub release.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+          - os: macos-latest
+            name: macOS
+          - os: ubuntu-latest
+            name: Linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Linux packages
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb libtk8.6
+
+      - name: Install Python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pyinstaller
+
+      - name: Run tests
+        if: runner.os != 'Linux'
+        run: python -m unittest discover -s tests -t . -v
+
+      - name: Run tests (virtual display)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m unittest discover -s tests -t . -v
+
+      - name: Build
+        run: python build.py
+
+      - name: Check that the Linux build starts
+        if: runner.os == 'Linux'
+        run: |
+          status=0
+          timeout 10 xvfb-run -a dist/TitlePlacement || status=$?
+          # 124 means it was still running after 10 seconds, anything else is a crash
+          if [ "$status" -ne 124 ]; then echo "App exited with code $status"; exit 1; fi
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir release
+          case "$RUNNER_OS" in
+            Windows) cp dist/TitlePlacement.exe release/TitlePlacement-Windows.exe ;;
+            macOS) ditto -c -k --keepParent dist/TitlePlacement.app release/TitlePlacement-macOS.zip ;;
+            Linux) tar -czf release/TitlePlacement-Linux.tar.gz -C dist TitlePlacement ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TitlePlacement-${{ matrix.name }}
+          path: release/*
+
+  release:
+    # Runs only for version tags, after all three builds passed
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

@@ -95,17 +95,19 @@ app_name = get_env("APP_NAME", "Title Placement")
 # ---------------------------------------------------------------- Appearance
 appearance_mode = get_env("APPEARANCE_MODE", "System")  # System, Light or Dark
 color_theme = get_env("COLOR_THEME", "blue")  # blue, green, dark-blue or a path to a theme .json
-accent_color = get_env("ACCENT_COLOR", "#3B82F6")
-accent_hover_color = get_env("ACCENT_HOVER_COLOR", "#2563EB")
+accent_color = get_env("ACCENT_COLOR", "#6366F1")
+accent_hover_color = get_env("ACCENT_HOVER_COLOR", "#4F46E5")
 danger_color = get_env("DANGER_COLOR", "#EF4444")
 danger_hover_color = get_env("DANGER_HOVER_COLOR", "#DC2626")
 success_color = get_env("SUCCESS_COLOR", "#22C55E")
-font_family = get_env("FONT_FAMILY", "Segoe UI")
+# Default font for each system, Segoe UI only exists on Windows
+DEFAULT_FONTS = {"win32": "Segoe UI", "darwin": "Helvetica Neue"}
+font_family = get_env("FONT_FAMILY", DEFAULT_FONTS.get(sys.platform, "DejaVu Sans"))
 ui_scaling = get_env_float("UI_SCALING", 1.0)
 
 # ---------------------------------------------------------------- Windows
-auth_window_size = get_env("AUTH_WINDOW_SIZE", "520x640")
-dashboard_window_size = get_env("DASHBOARD_WINDOW_SIZE", "1100x680")
+auth_window_size = get_env("AUTH_WINDOW_SIZE", "560x720")
+dashboard_window_size = get_env("DASHBOARD_WINDOW_SIZE", "1140x720")
 window_resizable = get_env_bool("WINDOW_RESIZABLE", False)
 
 # ---------------------------------------------------------------- Database
@@ -118,6 +120,9 @@ database_port = get_env_int("DATABASE_PORT", 3306 if database_type == "mysql" el
 database_name = get_env("DATABASE_NAME", "user_database")
 database_user = get_env("DATABASE_USER", "")
 database_password = get_env("DATABASE_PASSWORD", "")
+
+# ---------------------------------------------------------------- Profile
+bio_max_length = get_env_int("BIO_MAX_LENGTH", 160)
 
 # ---------------------------------------------------------------- Security
 min_password_length = get_env_int("MIN_PASSWORD_LENGTH", 8)
