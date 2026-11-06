@@ -1,16 +1,17 @@
+import io
 import threading
 import tkinter
 from functools import lru_cache
 from tkinter import filedialog, messagebox
 import customtkinter
-from PIL import Image
+from PIL import Image, ImageDraw, ImageOps
 import config
 from functions import (is_valid_chars_space, is_valid_chars, is_valid_password_chars, is_strong_password, password_strength,
                        check_security_answer, get_security_question, is_valid_email, get_countries, validate_country,
                        toggle_password, register_user, check_login, get_lockout_remaining, reset_password,
                        email_exists, username_exists, change_password, get_user_data, update_user_profile, delete_user,
                        oauth_login_user, update_bio, export_user_data, days_since, time_ago, format_date, get_greeting,
-                       get_initials, profile_completion, security_score)
+                       get_initials, profile_completion, security_score, get_gravatar)
 from oauth import oauth_sign_in, get_display_providers, get_provider_name, is_provider_configured, OAuthError
 
 # ---------------------------------------------------------------- Style
@@ -44,9 +45,9 @@ BANNER_CHIP_COLOR = (mix_color(ACCENT_COLOR, "#FFFFFF", 0.2), mix_color(ACCENT_C
 BANNER_TEXT_COLOR = "#FFFFFF"
 BANNER_MUTED_COLOR = ("#E0E7FF", "#C7D2FE")
 
-# Rounded but not round: "squircle" style corners
-CARD_RADIUS = 18
-WIDGET_RADIUS = 12
+# Squarish corners: just enough rounding to not look sharp
+CARD_RADIUS = 8
+WIDGET_RADIUS = 4
 
 FORM_WIDTH = 360
 FIELD_HEIGHT = 42
@@ -78,6 +79,14 @@ def load_image(path, size):
     image = Image.open(path)
     image.thumbnail((size[0] * 2, size[1] * 2), Image.LANCZOS)  # 2x for sharp images on high DPI screens
     return customtkinter.CTkImage(light_image=image, size=size)
+
+def avatar_image(data, size):
+    # Turn downloaded picture bytes into a square image with slightly rounded corners
+    image = ImageOps.fit(Image.open(io.BytesIO(data)).convert("RGBA"), (size * 2, size * 2), Image.LANCZOS)
+    mask = Image.new("L", image.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, image.width - 1, image.height - 1), radius=12, fill=255)
+    image.putalpha(mask)
+    return customtkinter.CTkImage(light_image=image, size=(size, size))
 
 def create_title(master, title, subtitle=""):
     # Large title with a muted subtitle underneath
@@ -183,7 +192,7 @@ def create_chip(master, text, fg_color=ACCENT_SOFT_COLOR, text_color=TEXT_COLOR)
 
 def create_stat_tile(master, title, value, caption, color=ACCENT_COLOR):
     # Glass tile with a big number, used in the stats row
-    tile = create_glass_frame(master, radius=16)
+    tile = create_glass_frame(master)
     customtkinter.CTkFrame(master=tile, width=28, height=4, corner_radius=2, fg_color=color).pack(anchor="w", padx=18, pady=(16, 0))
     customtkinter.CTkLabel(master=tile, text=title.upper(), font=font(10, "bold"), text_color=MUTED_TEXT_COLOR, anchor="w").pack(fill="x", padx=18, pady=(8, 0))
     customtkinter.CTkLabel(master=tile, text=value, font=font(24, "bold"), text_color=TEXT_COLOR, anchor="w").pack(fill="x", padx=18)
@@ -240,7 +249,7 @@ class AuthFrame(customtkinter.CTkFrame):
         self.appearance_menu.place(relx=1.0, x=-20, y=20, anchor="ne")
 
         # The form sits on a rounded glass card in the middle of the window
-        self.card = create_glass_frame(self, radius=22)
+        self.card = create_glass_frame(self)
         self.card.place(relx=0.5, rely=0.52, anchor=tkinter.CENTER)
         self.form = customtkinter.CTkFrame(master=self.card, fg_color="transparent")
         self.form.pack(padx=34, pady=(26, 28))
@@ -336,7 +345,7 @@ class MainFrame(AuthFrame):
         options_row.pack(fill="x", pady=10)
         self.show_password_var = customtkinter.BooleanVar()
         self.show_password = customtkinter.CTkCheckBox(master=options_row, text="Show password", font=font(12), text_color=MUTED_TEXT_COLOR,
-                                                       checkbox_width=18, checkbox_height=18, corner_radius=5, border_width=2,
+                                                       checkbox_width=18, checkbox_height=18, corner_radius=3, border_width=2,
                                                        fg_color=ACCENT_COLOR, hover_color=ACCENT_HOVER_COLOR, variable=self.show_password_var,
                                                        command=lambda: toggle_password(self.p_block, self.show_password_var))
         self.show_password.pack(side="left")
@@ -674,6 +683,7 @@ class LoggedInFrame(customtkinter.CTkFrame):
         self.master = master
         self.username = username
         self.nav_buttons = {}
+        self.gravatar = None  # Profile picture bytes from Gravatar, None until loaded
         self.setup_loggedin_frame()
 
     def setup_loggedin_frame(self):
@@ -693,9 +703,21 @@ class LoggedInFrame(customtkinter.CTkFrame):
         self.current_page = None
         self.show_page("profile")
 
+        # Load the profile picture in the background, get_gravatar keeps it in memory until the app restarts
+        run_in_background(self, lambda: get_gravatar(self.user.get("email")), self.show_gravatar)
+
+    def show_gravatar(self, data, error):
+        # Replace the initials with the Gravatar picture (if the user has one)
+        if not data:
+            return
+        self.gravatar = data
+        self.avatar.configure(image=avatar_image(data, 60), text="", fg_color="transparent")
+        if self.current_page == "profile":
+            self.banner_avatar.configure(image=avatar_image(data, 84), text="", fg_color="transparent")
+
     def setup_sidebar(self):
         # Floating glass sidebar with rounded corners
-        self.sidebar = create_glass_frame(self, radius=22, width=240)
+        self.sidebar = create_glass_frame(self, width=240)
         self.sidebar.grid(row=0, column=0, sticky="ns", padx=(16, 0), pady=16)
         self.sidebar.grid_propagate(False)
         self.sidebar.pack_propagate(False)
@@ -703,12 +725,12 @@ class LoggedInFrame(customtkinter.CTkFrame):
         # App name with a small accent mark
         brand = customtkinter.CTkFrame(master=self.sidebar, fg_color="transparent")
         brand.pack(fill="x", padx=22, pady=(24, 26))
-        customtkinter.CTkLabel(master=brand, text="", width=12, height=12, corner_radius=4, fg_color=ACCENT_COLOR).pack(side="left", padx=(0, 10))
+        customtkinter.CTkLabel(master=brand, text="", width=12, height=12, corner_radius=2, fg_color=ACCENT_COLOR).pack(side="left", padx=(0, 10))
         customtkinter.CTkLabel(master=brand, text=config.app_name, font=font(16, "bold"), text_color=TEXT_COLOR, anchor="w").pack(side="left")
 
-        # Avatar with the user's initials
+        # Avatar with the user's initials, replaced by the Gravatar picture once it is loaded
         self.avatar = customtkinter.CTkLabel(master=self.sidebar, text=get_initials(self.user, self.username), width=60, height=60,
-                                             corner_radius=20, fg_color=ACCENT_COLOR, text_color="#FFFFFF", font=font(20, "bold"))
+                                             corner_radius=6, fg_color=ACCENT_COLOR, text_color="#FFFFFF", font=font(20, "bold"))
         self.avatar.pack(padx=22, anchor="w")
         self.name_label = customtkinter.CTkLabel(master=self.sidebar, text=self.get_full_name(), font=font(15, "bold"),
                                                  text_color=TEXT_COLOR, anchor="w")
@@ -783,13 +805,15 @@ class LoggedInFrame(customtkinter.CTkFrame):
 
     def setup_profile_banner(self):
         # Colored hero card with the avatar, name and a few "chips"
-        banner = create_glass_frame(self.page, radius=22, fg_color=BANNER_COLOR, border_color=BANNER_BORDER_COLOR)
+        banner = create_glass_frame(self.page, fg_color=BANNER_COLOR, border_color=BANNER_BORDER_COLOR)
         banner.pack(fill="x", padx=(0, 12))
         banner.grid_columnconfigure(1, weight=1)
 
-        customtkinter.CTkLabel(master=banner, text=get_initials(self.user, self.username), width=84, height=84, corner_radius=26,
-                               fg_color=BANNER_CHIP_COLOR, text_color=BANNER_TEXT_COLOR,
-                               font=font(30, "bold")).grid(row=0, column=0, rowspan=3, padx=(26, 18), pady=24)
+        self.banner_avatar = customtkinter.CTkLabel(master=banner, text=get_initials(self.user, self.username), width=84, height=84,
+                                                    corner_radius=6, fg_color=BANNER_CHIP_COLOR, text_color=BANNER_TEXT_COLOR, font=font(30, "bold"))
+        self.banner_avatar.grid(row=0, column=0, rowspan=3, padx=(26, 18), pady=24)
+        if self.gravatar:
+            self.banner_avatar.configure(image=avatar_image(self.gravatar, 84), text="", fg_color="transparent")
         customtkinter.CTkLabel(master=banner, text=self.get_full_name(), font=font(24, "bold"), text_color=BANNER_TEXT_COLOR,
                                anchor="w").grid(row=0, column=1, sticky="sw", pady=(24, 0))
         bio = (self.user.get("bio") or "").strip() or "No bio yet. Tell people a little about yourself below."
@@ -928,7 +952,8 @@ class LoggedInFrame(customtkinter.CTkFrame):
     def refresh_sidebar(self):
         # Update the name and avatar after the profile was changed
         self.name_label.configure(text=self.get_full_name())
-        self.avatar.configure(text=get_initials(self.user, self.username))
+        if not self.gravatar:
+            self.avatar.configure(text=get_initials(self.user, self.username))
 
     def update_bio_counter(self):
         # Show how many characters are left, red when the bio is too long

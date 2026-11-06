@@ -401,6 +401,7 @@ The following functions are used for managing user data. The connection function
 - `days_since(date_text)` and `format_date(date_text)`: days since a saved date, and "31 Jan 2024".
 - `get_greeting(hour=None)`: "Good morning", "Good afternoon" or "Good evening".
 - `get_initials(user, username)`: initials for the avatar.
+- `get_gravatar(email)`: downloads the Gravatar picture for the avatar, kept in memory until the app is closed.
 - `profile_completion(user)`: percent complete and a checklist of what is missing.
 - `security_score(user)`: a score from 0 to 100 and "Strong", "Good" or "Weak".
 

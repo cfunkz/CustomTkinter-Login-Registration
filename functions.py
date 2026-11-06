@@ -6,6 +6,7 @@ import string
 import time
 import re
 import json
+from urllib.request import urlopen
 from datetime import datetime
 from functools import lru_cache
 from email.mime.text import MIMEText
@@ -490,6 +491,23 @@ def get_initials(user, username=""):
     first_name = (user.get("first_name") or username or "?").strip()
     last_name = (user.get("last_name") or "").strip()
     return (first_name[:1] + last_name[:1]).upper()
+
+# Gravatar pictures by email, kept in memory until the app is closed
+gravatar_cache = {}
+
+def get_gravatar(email, size=168):
+    # Download the Gravatar picture for an email, None if there is none (or no internet)
+    email = (email or "").strip().lower()
+    if not email:
+        return None
+    if email not in gravatar_cache:
+        email_hash = hashlib.sha256(email.encode()).hexdigest()
+        try:
+            with urlopen(f"https://www.gravatar.com/avatar/{email_hash}?s={size}&d=404", timeout=5) as response:
+                gravatar_cache[email] = response.read()
+        except Exception:
+            gravatar_cache[email] = None  # No picture, don't ask again until restart
+    return gravatar_cache[email]
 
 def profile_completion(user):
     # Checklist of profile items and how many percent are done

@@ -52,6 +52,12 @@ class ProfileHelperTests(unittest.TestCase):
         self.assertEqual(functions.get_initials({"first_name": "John", "last_name": "Smith"}), "JS")
         self.assertEqual(functions.get_initials({}, "bob"), "B")
 
+    def test_gravatar_cache(self):
+        # A saved picture is returned without downloading it again, the email is matched case-insensitively
+        functions.gravatar_cache["cached@example.com"] = b"picture"
+        self.assertEqual(functions.get_gravatar(" Cached@Example.com "), b"picture")
+        self.assertIsNone(functions.get_gravatar(""))
+
     def test_profile_completion(self):
         user = {"first_name": "John", "last_name": "Smith", "country": "Latvia", "email": "j@example.com", "bio": "Hi",
                 "password_set": 1, "security_question": "Where were you born?"}

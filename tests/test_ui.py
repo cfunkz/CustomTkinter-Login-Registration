@@ -1,5 +1,7 @@
+import io
 import os
 import tkinter
+from PIL import Image
 import unittest
 from tests import TEST_DIR
 
@@ -46,6 +48,17 @@ class UITests(unittest.TestCase):
         self.draw()
         dashboard.show_page("profile")
         self.draw()
+
+        # Fake Gravatar picture replaces the initials in the sidebar and on the banner
+        picture = io.BytesIO()
+        Image.new("RGB", (40, 40), "#6366F1").save(picture, "PNG")
+        dashboard.show_gravatar(picture.getvalue(), None)
+        self.draw()
+        self.assertEqual(dashboard.avatar.cget("text"), "")
+        dashboard.show_page("security")
+        dashboard.show_page("profile")
+        self.draw()
+        self.assertEqual(dashboard.banner_avatar.cget("text"), "")
         self.app.open_main_frame()
 
 if __name__ == "__main__":
